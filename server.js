@@ -43,6 +43,10 @@ function numberValue(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function textValue(value) {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? '');
+}
+
 function liveRows(buffer, sheetName, headerRow) {
   const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
   const sheet = workbook.Sheets[sheetName];
@@ -82,9 +86,112 @@ function liveFundPlanning(buffer) {
   };
 }
 
+function liveDailyFundOutflow(buffer) {
+  const rows = liveRows(buffer, 'Daywise', 5).map((row, index) => ({
+    sr: row['Sr. No.'] || index + 1,
+    date: textValue(row.Date),
+    day: row.Day,
+    amount: numberValue(row.Amount)
+  })).filter(row => row.day || row.amount);
+  return { asOn: new Date().toISOString().slice(0, 10), currency: 'INR', rows, total: rows.reduce((sum, row) => sum + row.amount, 0) };
+}
+
+function liveOneView(buffer) {
+  const rows = liveRows(buffer, 'New Data', 2).map(row => ({
+    bl_no: textValue(row['Last 6 Digit BL No.']),
+    full_bl_no: textValue(row['BL No.']),
+    order_status: row['Order Status'],
+    entity: row['Intity Name'],
+    vendor_name: row['Vendor name'],
+    product_name: row['Pruduct Name As per SO'],
+    category: row.Category,
+    no_of_containers: numberValue(row['Nos of Container']),
+    shipment_status: row['Shipment Status'],
+    documents_status: row['Documents Status'],
+    shipping_line: row['Shiping Line'],
+    cha_name: row['CHA Name']
+  })).filter(row => row.bl_no || row.vendor_name);
+  return { asOn: new Date().toISOString().slice(0, 10), rows };
+}
+
+function liveShipmentCosting(buffer) {
+  const rows = liveRows(buffer, 'Shipmement Costing', 2).map(row => ({
+    bl_no: textValue(row['Last 6 Digit BL No.']),
+    order_status: row['Order Status'],
+    entity: row['Intity Name'],
+    full_bl_no: row['BL No.'],
+    bl_date: textValue(row['BL  Date']),
+    so_no: row['SO  No.'],
+    vendor_name: row['Vendor name'],
+    product_name: row['Pruduct Name As per SO'],
+    category: row.Category,
+    port_of_loading: row['Port of Loading'],
+    port_of_discharge: row['Port of Discharge'],
+    invoice_qty_mt: numberValue(row['Invoice Qty.']),
+    amount_paid_usd: numberValue(row['Amount Paid in USD']),
+    duty_amount_inr: numberValue(row['DUTY AMOUNT']),
+    total_be_amount_inr: numberValue(row['Total BE Amount']),
+    landing_cost_inr: numberValue(row['Landing Cost\nin INR']),
+    landing_cost_per_kg_inr: numberValue(row['Landing Cost per KGS\nin INR']),
+    detention_amount_inr: numberValue(row['Detention Amount']),
+    damage_claim_inr: numberValue(row['Damage Claim']),
+    shipment_status: row['Shipment Status'],
+    documents_status: row['Documents Status']
+  })).filter(row => row.bl_no || row.vendor_name);
+  const totals = rows.reduce((total, row) => ({
+    duty_amount_inr: total.duty_amount_inr + row.duty_amount_inr,
+    total_be_amount_inr: total.total_be_amount_inr + row.total_be_amount_inr,
+    landing_cost_inr: total.landing_cost_inr + row.landing_cost_inr,
+    detention_amount_inr: total.detention_amount_inr + row.detention_amount_inr,
+    damage_claim_inr: total.damage_claim_inr + row.damage_claim_inr,
+    qty: total.qty + row.invoice_qty_mt
+  }), { duty_amount_inr: 0, total_be_amount_inr: 0, landing_cost_inr: 0, detention_amount_inr: 0, damage_claim_inr: 0, qty: 0 });
+  totals.avg_landing_cost_per_kg = totals.qty ? totals.landing_cost_inr / (totals.qty * 1000) : 0;
+  return { fy: '2025-26', asOn: new Date().toISOString().slice(0, 10), rows, totals };
+}
+
+function liveOverview(buffer) {
+  const oneView = liveOneView(buffer);
+  const costing = liveShipmentCosting(buffer);
+  const planning = liveFundPlanning(buffer);
+  const statusCount = (field, value) => oneView.rows.filter(row => String(row[field]).toLowerCase() === value.toLowerCase()).length;
+  const vendors = {};
+  oneView.rows.forEach(row => { vendors[row.vendor_name] = (vendors[row.vendor_name] || 0) + 1; });
+  const topVendors = Object.entries(vendors).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([vendor, bl_count]) => ({ vendor, bl_count }));
+  return {
+    asOn: new Date().toISOString().slice(0, 10),
+    portfolio_snapshot: {
+      total_bl_records: oneView.rows.length,
+      total_containers: oneView.rows.reduce((sum, row) => sum + row.no_of_containers, 0),
+      active_orders: oneView.rows.filter(row => String(row.order_status).toLowerCase() === 'active').length,
+      closed_orders: oneView.rows.filter(row => String(row.order_status).toLowerCase() === 'closed').length
+    },
+    shipment_docs_status: {
+      delivered: statusCount('shipment_status', 'Delivered'),
+      in_transit: statusCount('shipment_status', 'In-Transit'),
+      documents_released: statusCount('documents_status', 'Released'),
+      documents_at_bank: statusCount('documents_status', 'At Bank'),
+      documents_at_seller: statusCount('documents_status', 'At Seller')
+    },
+    cost_duty_summary: {
+      total_landing_cost_inr: costing.totals.landing_cost_inr,
+      avg_landing_cost_per_kg: costing.totals.avg_landing_cost_per_kg,
+      total_duty_amount_inr: costing.totals.duty_amount_inr,
+      total_detention_amount_inr: costing.totals.detention_amount_inr,
+      total_damage_claims_inr: costing.totals.damage_claim_inr,
+      total_fund_required_inr: planning.totals.total_required_inr
+    },
+    top_vendors: topVendors
+  };
+}
+
 async function getLiveData(name) {
   const buffer = await downloadWorkbook();
+  if (name === 'consolidated_mis') return liveOverview(buffer);
+  if (name === 'daily_fund_outflow') return liveDailyFundOutflow(buffer);
   if (name === 'fund_planning') return liveFundPlanning(buffer);
+  if (name === 'one_view') return liveOneView(buffer);
+  if (name === 'shipment_costing') return liveShipmentCosting(buffer);
   throw new Error(`Live mapping is not available for ${name}`);
 }
 
