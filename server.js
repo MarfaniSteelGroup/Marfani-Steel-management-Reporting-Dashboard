@@ -186,6 +186,21 @@ app.get('/api/users', (req, res) => {
   })));
 });
 
+app.patch('/api/users/:username/permissions', (req, res) => {
+  const session = getSessionUser(req);
+  if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
+
+  const username = req.params.username;
+  const account = USERS[username];
+  if (!account) return res.status(404).json({ error: 'User not found.' });
+  if (account.role === 'admin') return res.status(400).json({ error: 'Admin permissions cannot be changed.' });
+
+  const { entry, approval } = req.body || {};
+  account.permissions = [entry ? 'entry' : '', approval ? 'approval' : ''].filter(Boolean);
+  fs.writeFileSync(path.join(__dirname, 'data', 'users.json'), `${JSON.stringify(USERS, null, 2)}\n`);
+  res.json({ username, role: account.role, permissions: account.permissions });
+});
+
 app.post('/api/users', (req, res) => {
   const session = getSessionUser(req);
   if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });

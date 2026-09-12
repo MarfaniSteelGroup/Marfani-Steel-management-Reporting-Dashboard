@@ -264,11 +264,45 @@
     };
     const renderActiveUsers = (users) => {
       activeUsersList.innerHTML = users.map(user => `
-          <div class="active-user">
+          <div class="active-user" data-username="${esc(user.username)}">
             <div class="active-user-name"><strong>${esc(user.username)}</strong><span>${esc(user.role)}</span></div>
-            <div class="active-user-rights">${user.permissions.length ? user.permissions.map(right => `<span>${esc(right)}</span>`).join('') : '<span>View reports</span>'}</div>
+            <div class="active-user-rights">
+              <label><input type="checkbox" data-right="entry" ${user.permissions.includes('entry') ? 'checked' : ''} ${user.role === 'admin' ? 'disabled' : ''}> Entry</label>
+              <label><input type="checkbox" data-right="approval" ${user.permissions.includes('approval') ? 'checked' : ''} ${user.role === 'admin' ? 'disabled' : ''}> Approval</label>
+            </div>
+            ${user.role === 'admin' ? '<span class="user-fixed-rights">Admin rights fixed</span>' : '<button class="save-user-rights" type="button">Save rights</button>'}
+            <p class="rights-message" aria-live="polite"></p>
           </div>
         `).join('');
+      activeUsersList.querySelectorAll('.save-user-rights').forEach(button => {
+        button.addEventListener('click', async () => {
+          const row = button.closest('.active-user');
+          const username = row.dataset.username;
+          const message = row.querySelector('.rights-message');
+          const checkboxes = row.querySelectorAll('input[data-right]');
+          const payload = {
+            entry: checkboxes[0].checked,
+            approval: checkboxes[1].checked
+          };
+          button.disabled = true;
+          try {
+            const response = await fetch(`/api/users/${encodeURIComponent(username)}/permissions`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Could not save rights.');
+            message.textContent = 'Rights saved.';
+            message.className = 'rights-message success';
+          } catch (error) {
+            message.textContent = 'Rights can be saved on the deployed server.';
+            message.className = 'rights-message error';
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
     };
     document.getElementById('usersRefresh').addEventListener('click', loadActiveUsers);
     loadActiveUsers();
