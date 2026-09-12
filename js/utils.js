@@ -48,6 +48,7 @@ const DataStore = (() => {
       const live = await fetch(`/api/live-data/${name}`);
       if(live.ok){
         const json = await live.json();
+        window.dashboardDataSource = live.headers.get('x-data-source') || 'live-excel';
         cache[name] = json;
         return json;
       }
@@ -58,6 +59,7 @@ const DataStore = (() => {
     const res = await fetch(`data/${name}.json`);
     if(!res.ok) throw new Error(`Failed to load ${name}`);
     const json = await res.json();
+    window.dashboardDataSource = 'static-fallback';
     cache[name] = json;
     return json;
   }

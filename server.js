@@ -9,7 +9,7 @@ const ADMIN_USERNAME = 'Admin';
 const ADMIN_PASSWORD = 'Marfani@12345';
 const AUTH_COOKIE = 'marfani_admin_session';
 const USERS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.json'), 'utf8'));
-const LIVE_WORKBOOK_URL = 'https://marfanisteelpvtltd-my.sharepoint.com/personal/dms-msgroup_marfanisteel_com/Documents/CONTAINER%20CST%20-%20Final.xlsx.%20website.xlsm?download=1';
+const LIVE_WORKBOOK_URL = 'https://marfanisteelpvtltd-my.sharepoint.com/personal/dms-msgroup_marfanisteel_com/Documents/CONTAINER%20CST%20-%20Final.xlsx.%20website.xlsm?ga=1';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,12 +19,24 @@ async function downloadWorkbook() {
   const timeout = setTimeout(() => controller.abort(), 12000);
   let response;
   try {
-    response = await fetch(LIVE_WORKBOOK_URL, { redirect: 'follow', signal: controller.signal });
+    response = await fetch(LIVE_WORKBOOK_URL, {
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/vnd.ms-excel.sheet.macroEnabled.12,application/octet-stream,*/*',
+        'User-Agent': 'Mozilla/5.0 Marfani-Steel-Reporting'
+      }
+    });
   } finally {
     clearTimeout(timeout);
   }
   if (!response.ok) throw new Error(`Workbook download failed with status ${response.status}`);
-  return Buffer.from(await response.arrayBuffer());
+  const contentType = response.headers.get('content-type') || '';
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!contentType.includes('excel') && !contentType.includes('octet-stream') && buffer.slice(0, 2).toString() !== 'PK') {
+    throw new Error(`SharePoint returned ${contentType || 'an unknown content type'} instead of an Excel workbook`);
+  }
+  return buffer;
 }
 
 function loadStaticReport(name) {
@@ -357,6 +369,7 @@ app.get('/api/live-data/:name', async (req, res) => {
   const session = getSessionUser(req);
   if (!session) return res.status(401).json({ error: 'Login required.' });
   try {
+    res.setHeader('X-Data-Source', 'live-excel');
     res.json(await getLiveData(req.params.name));
   } catch (error) {
     console.error(`Live workbook unavailable for ${req.params.name}:`, error.message);
