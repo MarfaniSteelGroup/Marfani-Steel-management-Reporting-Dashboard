@@ -176,6 +176,16 @@ app.get('/api/session', (req, res) => {
   res.json({ authenticated: true, username: user.username, role: user.role, permissions: user.permissions });
 });
 
+app.get('/api/users', (req, res) => {
+  const session = getSessionUser(req);
+  if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
+  res.json(Object.entries(USERS).map(([username, account]) => ({
+    username,
+    role: account.role,
+    permissions: account.permissions || []
+  })));
+});
+
 app.post('/api/users', (req, res) => {
   const session = getSessionUser(req);
   if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });

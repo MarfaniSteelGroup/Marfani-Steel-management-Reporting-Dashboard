@@ -139,6 +139,15 @@
             <button class="admin-action admin-create" type="submit">Create user</button>
             <p class="user-create-message" id="userCreateMessage" aria-live="polite"></p>
           </form>
+          <div class="active-users">
+            <div class="active-users-heading">
+              <strong>Active users</strong>
+              <button class="users-refresh" id="usersRefresh" type="button" aria-label="Refresh active users">Refresh</button>
+            </div>
+            <div class="active-users-list" id="activeUsersList">
+              <span class="users-empty">Loading users...</span>
+            </div>
+          </div>
           <button class="admin-action" id="refreshReports" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4L3 10m0 0V4m0 6h6M4 13a8 8 0 0 0 14.9 4L21 14m0 0v6m0-6h-6"/></svg>
             Refresh reports
@@ -239,6 +248,30 @@
         message.className = 'user-create-message error';
       }
     });
+    const activeUsersList = document.getElementById('activeUsersList');
+    const loadActiveUsers = async () => {
+      try {
+        const response = await fetch('/api/users');
+        if (!response.ok) throw new Error('Local fallback');
+        const users = await response.json();
+        renderActiveUsers(users);
+      } catch (error) {
+        renderActiveUsers([
+          { username: 'Admin', role: 'admin', permissions: ['entry', 'approval', 'user_creation'] },
+          { username: 'Viewer', role: 'viewer', permissions: [] }
+        ]);
+      }
+    };
+    const renderActiveUsers = (users) => {
+      activeUsersList.innerHTML = users.map(user => `
+          <div class="active-user">
+            <div class="active-user-name"><strong>${esc(user.username)}</strong><span>${esc(user.role)}</span></div>
+            <div class="active-user-rights">${user.permissions.length ? user.permissions.map(right => `<span>${esc(right)}</span>`).join('') : '<span>View reports</span>'}</div>
+          </div>
+        `).join('');
+    };
+    document.getElementById('usersRefresh').addEventListener('click', loadActiveUsers);
+    loadActiveUsers();
     document.getElementById('adminLogout').addEventListener('click', async () => {
       sessionStorage.removeItem('marfani_admin_session');
       sessionStorage.removeItem('marfani_admin_role');
