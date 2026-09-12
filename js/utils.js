@@ -51,6 +51,7 @@ const DataStore = (() => {
         cache[name] = json;
         return json;
       }
+      console.warn(`Live workbook request failed for ${name}; using saved report data.`);
     } catch(error) {
       console.warn(`Live workbook unavailable for ${name}; using saved report data.`, error);
     }

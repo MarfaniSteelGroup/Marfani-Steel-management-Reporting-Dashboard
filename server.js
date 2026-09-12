@@ -15,7 +15,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 async function downloadWorkbook() {
-  const response = await fetch(LIVE_WORKBOOK_URL, { redirect: 'follow' });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  let response;
+  try {
+    response = await fetch(LIVE_WORKBOOK_URL, { redirect: 'follow', signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!response.ok) throw new Error(`Workbook download failed with status ${response.status}`);
   return Buffer.from(await response.arrayBuffer());
 }
