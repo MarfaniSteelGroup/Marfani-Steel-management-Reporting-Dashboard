@@ -1,0 +1,10 @@
+{
+  "Admin": {
+    "password": "Marfani@12345",
+    "role": "admin"
+  },
+  "Viewer": {
+    "password": "Marfani@view123",
+    "role": "viewer"
+  }
+}

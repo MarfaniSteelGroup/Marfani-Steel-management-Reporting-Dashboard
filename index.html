@@ -109,7 +109,7 @@
         <span class="stamp-date" id="asOnDate">12&ndash;SEP&ndash;2026</span>
       </div>
       <div class="admin-tools">
-        <button class="admin-trigger" id="adminTrigger" type="button" aria-expanded="false" aria-controls="adminPanel">
+        <button class="admin-trigger" id="adminTrigger" type="button" aria-expanded="false" aria-controls="adminPanel" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8a7 7 0 0 1 14 0"/></svg>
           <span>Admin</span>
         </button>
@@ -149,27 +149,43 @@
 <script>
   (() => {
     const loggedIn = sessionStorage.getItem('marfani_admin_session') === '1';
+    const localRole = sessionStorage.getItem('marfani_admin_role') || '';
     const body = document.body;
     const gate = document.getElementById('authGate');
+    const adminTrigger = document.getElementById('adminTrigger');
+    const adminPanel = document.getElementById('adminPanel');
+    const setRole = (role, username) => {
+      if (role === 'admin') {
+        adminTrigger.hidden = false;
+        adminPanel.querySelector('.admin-session strong').textContent = username || 'Admin';
+        return;
+      }
+      adminTrigger.hidden = true;
+      adminPanel.hidden = true;
+      adminTrigger.setAttribute('aria-expanded', 'false');
+    };
     if (loggedIn) {
       body.classList.remove('auth-locked');
       gate.hidden = true;
+      setRole(localRole, 'Admin');
     }
     document.getElementById('authForm').addEventListener('submit', (event) => {
       event.preventDefault();
       const username = document.getElementById('authUsername').value;
       const password = document.getElementById('authPassword').value;
-      if (username === 'Admin' && password === 'Marfani@12345') {
+      const role = username === 'Admin' && password === 'Marfani@12345' ? 'admin' :
+        username === 'Viewer' && password === 'Marfani@view123' ? 'viewer' : '';
+      if (role) {
         sessionStorage.setItem('marfani_admin_session', '1');
+        sessionStorage.setItem('marfani_admin_role', role);
         body.classList.remove('auth-locked');
         gate.hidden = true;
+        setRole(role, username);
         return;
       }
       document.getElementById('authError').textContent = 'Invalid admin ID or password.';
     });
 
-    const adminTrigger = document.getElementById('adminTrigger');
-    const adminPanel = document.getElementById('adminPanel');
     adminTrigger.addEventListener('click', () => {
       const isOpen = adminPanel.hidden;
       adminPanel.hidden = !isOpen;
@@ -178,9 +194,14 @@
     document.getElementById('refreshReports').addEventListener('click', () => window.location.reload());
     document.getElementById('adminLogout').addEventListener('click', async () => {
       sessionStorage.removeItem('marfani_admin_session');
+      sessionStorage.removeItem('marfani_admin_role');
       try { await fetch('/logout', { redirect: 'manual' }); } catch (error) { /* Static servers may not expose logout. */ }
       window.location.reload();
     });
+
+    fetch('/api/session').then(response => response.ok ? response.json() : null).then(session => {
+      if (session) setRole(session.role, session.username);
+    }).catch(() => {});
   })();
 </script>
 <script src="js/app.js"></script>
