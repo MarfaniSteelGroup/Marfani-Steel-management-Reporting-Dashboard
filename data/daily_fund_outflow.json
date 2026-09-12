@@ -1,0 +1,49 @@
+{
+  "asOn": "12-Sep-2026",
+  "currency": "INR",
+  "rows": [
+    {
+      "sr": 1,
+      "date": "12-Sep-2026",
+      "day": "Saturday",
+      "amount": 5050436
+    },
+    {
+      "sr": 2,
+      "date": "13-Sep-2026",
+      "day": "Sunday",
+      "amount": 2300000
+    },
+    {
+      "sr": 3,
+      "date": "14-Sep-2026",
+      "day": "Monday",
+      "amount": 4000000
+    },
+    {
+      "sr": 4,
+      "date": "15-Sep-2026",
+      "day": "Tuesday",
+      "amount": 6500000
+    },
+    {
+      "sr": 5,
+      "date": "16-Sep-2026",
+      "day": "Wednesday",
+      "amount": 8000000
+    },
+    {
+      "sr": 6,
+      "date": "17-Sep-2026",
+      "day": "Thursday",
+      "amount": 7500000
+    },
+    {
+      "sr": 7,
+      "date": "18-Sep-2026",
+      "day": "Friday",
+      "amount": 66045369
+    }
+  ],
+  "total": 99395805
+}

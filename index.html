@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marfani Steels &mdash; Management Reporting Deck</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="hull">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="dock" id="dock">
+    <div class="dock-brand">
+      <div class="brand-mark">MS</div>
+      <div class="brand-text">
+        <div class="brand-name">MARFANI STEELS</div>
+        <div class="brand-sub">Group Reporting Deck</div>
+      </div>
+    </div>
+
+    <nav class="dock-nav" id="dockNav">
+      <button class="nav-item" data-route="overview">
+        <svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9zm0 7h6v-5H4v5zm8 0h8V11h-8v9zm0-16v5h8V4h-8z"/></svg>
+        <span>Overview</span>
+      </button>
+      <button class="nav-item" data-route="fund-outflow">
+        <svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 15l3.5-4 3 3L18 8"/></svg>
+        <span>Daily Fund Outflow</span>
+      </button>
+      <button class="nav-item" data-route="fund-planning">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16v4H4zM4 10h10v10H4zM17 10h3v10h-3z"/></svg>
+        <span>Fund Planning</span>
+      </button>
+      <button class="nav-item" data-route="one-view">
+        <svg viewBox="0 0 24 24"><path d="M12 4C6 4 2 12 2 12s4 8 10 8 10-8 10-8-4-8-10-8zm0 13a5 5 0 110-10 5 5 0 010 10z"/></svg>
+        <span>One View &ndash; BL Tracker</span>
+      </button>
+      <button class="nav-item" data-route="shipment-costing">
+        <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/></svg>
+        <span>Shipment Costing</span>
+      </button>
+    </nav>
+
+    <div class="dock-foot">
+      <div class="foot-line">Source: CONTAINER_CST_&mdash;_Final.xlsm</div>
+      <div class="foot-line">Prepared by MIS Department</div>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <div class="deck">
+    <header class="topbar">
+      <button class="burger" id="burger" aria-label="Toggle navigation">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <div class="topbar-title">
+        <h1 id="pageTitle">Overview</h1>
+        <p id="pageSub">Consolidated management snapshot</p>
+      </div>
+      <div class="topbar-stamp">
+        <span class="stamp-label">REPORT AS ON</span>
+        <span class="stamp-date" id="asOnDate">12&ndash;SEP&ndash;2026</span>
+      </div>
+    </header>
+
+    <main class="stage" id="stage">
+      <!-- injected content -->
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/views.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

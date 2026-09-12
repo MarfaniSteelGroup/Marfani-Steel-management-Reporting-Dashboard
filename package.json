@@ -1,0 +1,17 @@
+{
+  "name": "marfani-steels-reporting-deck",
+  "version": "1.0.0",
+  "description": "Marfani Steels Group - Management Reporting Dashboard (Daily Fund Outflow, Fund Planning, One View BL Tracker, Shipment Costing, Consolidated MIS)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
