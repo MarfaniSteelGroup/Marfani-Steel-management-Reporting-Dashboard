@@ -3,7 +3,6 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const https = require('https');
 const XLSX = require('xlsx');
 
 const ADMIN_USERNAME = 'Admin';
@@ -15,27 +14,15 @@ const LIVE_WORKBOOK_URL = 'https://marfanisteelpvtltd-my.sharepoint.com/:x:/g/pe
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-function downloadWorkbook() {
-  return new Promise((resolve, reject) => {
-    https.get(LIVE_WORKBOOK_URL, response => {
-      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        https.get(response.headers.location, redirected => collectResponse(redirected, resolve, reject));
-        return;
-      }
-      collectResponse(response, resolve, reject);
-    }).on('error', reject);
-  });
+async function downloadWorkbook() {
+  const response = await fetch(LIVE_WORKBOOK_URL, { redirect: 'follow' });
+  if (!response.ok) throw new Error(`Workbook download failed with status ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
 }
 
-function collectResponse(response, resolve, reject) {
-  if (response.statusCode !== 200) {
-    reject(new Error(`Workbook download failed with status ${response.statusCode}`));
-    return;
-  }
-  const chunks = [];
-  response.on('data', chunk => chunks.push(chunk));
-  response.on('end', () => resolve(Buffer.concat(chunks)));
-  response.on('error', reject);
+function loadStaticReport(name) {
+  const filePath = path.join(__dirname, 'data', `${name}.json`);
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
 function numberValue(value) {
@@ -365,7 +352,13 @@ app.get('/api/live-data/:name', async (req, res) => {
   try {
     res.json(await getLiveData(req.params.name));
   } catch (error) {
-    res.status(502).json({ error: error.message });
+    console.error(`Live workbook unavailable for ${req.params.name}:`, error.message);
+    try {
+      res.setHeader('X-Data-Source', 'static-fallback');
+      res.json(loadStaticReport(req.params.name));
+    } catch (fallbackError) {
+      res.status(502).json({ error: fallbackError.message });
+    }
   }
 });
 
