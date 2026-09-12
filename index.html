@@ -108,6 +108,33 @@
         <span class="stamp-label">REPORT AS ON</span>
         <span class="stamp-date" id="asOnDate">12&ndash;SEP&ndash;2026</span>
       </div>
+      <div class="admin-tools">
+        <button class="admin-trigger" id="adminTrigger" type="button" aria-expanded="false" aria-controls="adminPanel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8a7 7 0 0 1 14 0"/></svg>
+          <span>Admin</span>
+        </button>
+        <section class="admin-panel" id="adminPanel" hidden>
+          <div class="admin-panel-heading">
+            <div>
+              <strong>Admin control panel</strong>
+              <span>Management reporting access</span>
+            </div>
+            <span class="admin-status">ACTIVE</span>
+          </div>
+          <div class="admin-session">
+            <span>Signed in as</span>
+            <strong>Admin</strong>
+          </div>
+          <button class="admin-action" id="refreshReports" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4L3 10m0 0V4m0 6h6M4 13a8 8 0 0 0 14.9 4L21 14m0 0v6m0-6h-6"/></svg>
+            Refresh reports
+          </button>
+          <button class="admin-action admin-logout" id="adminLogout" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5m5 5H3m9-9h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/></svg>
+            Log out
+          </button>
+        </section>
+      </div>
     </header>
 
     <main class="stage" id="stage">
@@ -139,6 +166,20 @@
         return;
       }
       document.getElementById('authError').textContent = 'Invalid admin ID or password.';
+    });
+
+    const adminTrigger = document.getElementById('adminTrigger');
+    const adminPanel = document.getElementById('adminPanel');
+    adminTrigger.addEventListener('click', () => {
+      const isOpen = adminPanel.hidden;
+      adminPanel.hidden = !isOpen;
+      adminTrigger.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.getElementById('refreshReports').addEventListener('click', () => window.location.reload());
+    document.getElementById('adminLogout').addEventListener('click', async () => {
+      sessionStorage.removeItem('marfani_admin_session');
+      try { await fetch('/logout', { redirect: 'manual' }); } catch (error) { /* Static servers may not expose logout. */ }
+      window.location.reload();
     });
   })();
 </script>

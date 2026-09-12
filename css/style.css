@@ -209,6 +209,34 @@ svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; 
   font-weight: 600;
 }
 
+.admin-tools{ position:relative; }
+.admin-trigger{
+  display:flex; align-items:center; gap:7px;
+  border:1px solid var(--line); border-radius:var(--radius-s);
+  padding:9px 12px; background:var(--hull-2); color:var(--ink-1);
+  cursor:pointer; font-size:12px; font-weight:600;
+}
+.admin-trigger:hover{ color:var(--amber); border-color:var(--amber-dim); }
+.admin-trigger svg{ width:16px; height:16px; }
+.admin-panel{
+  position:absolute; right:0; top:calc(100% + 10px); z-index:10;
+  width:270px; padding:15px; border:1px solid var(--line);
+  border-radius:var(--radius-m); background:var(--hull-1);
+  box-shadow:0 16px 35px rgba(0,0,0,.32);
+}
+.admin-panel[hidden]{ display:none; }
+.admin-panel-heading{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding-bottom:13px; border-bottom:1px solid var(--line-soft); }
+.admin-panel-heading strong{ display:block; color:var(--ink-0); font-size:13px; }
+.admin-panel-heading span:not(.admin-status){ display:block; margin-top:4px; color:var(--ink-3); font-size:10px; }
+.admin-status{ color:var(--green); font:600 9px var(--font-mono); letter-spacing:1px; }
+.admin-session{ display:flex; justify-content:space-between; padding:13px 0; color:var(--ink-2); font-size:12px; }
+.admin-session strong{ color:var(--ink-0); font-family:var(--font-mono); font-size:11px; }
+.admin-action{ display:flex; align-items:center; gap:9px; width:100%; padding:10px; border:1px solid var(--line-soft); border-radius:var(--radius-s); background:transparent; color:var(--ink-1); cursor:pointer; font-size:12px; text-align:left; }
+.admin-action + .admin-action{ margin-top:7px; }
+.admin-action:hover{ background:var(--hull-2); color:var(--amber); }
+.admin-action svg{ width:15px; height:15px; }
+.admin-logout{ color:var(--red); }
+
 .stage{
   padding: 28px 32px 60px;
   max-width: 1360px;
@@ -399,4 +427,7 @@ table.data .wrap{ white-space:normal; min-width:220px; }
   .topbar{ padding: 16px 16px; }
   .grid-4, .grid-3, .grid-2{ grid-template-columns: 1fr; }
   .topbar-stamp{ display:none; }
+  .admin-trigger span{ display:none; }
+  .admin-trigger{ padding:8px; }
+  .admin-panel{ right:-4px; }
 }
