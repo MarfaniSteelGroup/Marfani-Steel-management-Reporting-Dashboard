@@ -121,6 +121,7 @@ function buildLoginPage(errorMessage = '') {
 }
 
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 
 function getSessionUser(req) {
   const cookieHeader = req.headers.cookie || '';
@@ -135,7 +136,7 @@ function getSessionUser(req) {
     const [username, password] = decoded.split(':');
     const account = USERS[username];
     if (!account || account.password !== password) return null;
-    return { username, role: account.role };
+    return { username, role: account.role, permissions: account.permissions || [] };
   } catch (error) {
     return null;
   }
@@ -172,7 +173,27 @@ app.use((req, res, next) => {
 app.get('/api/session', (req, res) => {
   const user = getSessionUser(req);
   if (!user) return res.status(401).json({ authenticated: false });
-  res.json({ authenticated: true, username: user.username, role: user.role });
+  res.json({ authenticated: true, username: user.username, role: user.role, permissions: user.permissions });
+});
+
+app.post('/api/users', (req, res) => {
+  const session = getSessionUser(req);
+  if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
+
+  const { username, password, entry, approval } = req.body || {};
+  const cleanUsername = String(username || '').trim();
+  if (!/^[A-Za-z0-9_-]{3,32}$/.test(cleanUsername) || String(password || '').length < 8) {
+    return res.status(400).json({ error: 'Use a username of 3-32 letters/numbers and a password of at least 8 characters.' });
+  }
+  if (USERS[cleanUsername]) return res.status(409).json({ error: 'That user already exists.' });
+
+  USERS[cleanUsername] = {
+    password: String(password),
+    role: 'viewer',
+    permissions: [entry ? 'entry' : '', approval ? 'approval' : ''].filter(Boolean)
+  };
+  fs.writeFileSync(path.join(__dirname, 'data', 'users.json'), `${JSON.stringify(USERS, null, 2)}\n`);
+  res.status(201).json({ username: cleanUsername, role: 'viewer', permissions: USERS[cleanUsername].permissions });
 });
 
 app.use(express.static(path.join(__dirname)));

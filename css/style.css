@@ -231,6 +231,17 @@ svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; 
 .admin-status{ color:var(--green); font:600 9px var(--font-mono); letter-spacing:1px; }
 .admin-session{ display:flex; justify-content:space-between; padding:13px 0; color:var(--ink-2); font-size:12px; }
 .admin-session strong{ color:var(--ink-0); font-family:var(--font-mono); font-size:11px; }
+.user-create-form{ padding:13px 0; border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft); }
+.user-create-form > strong{ display:block; margin-bottom:10px; color:var(--ink-0); font-size:12px; }
+.user-create-form label{ display:grid; gap:5px; margin-top:8px; color:var(--ink-2); font-size:11px; }
+.user-create-form input[type="text"], .user-create-form input[type="password"]{ width:100%; padding:8px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--hull-0); color:var(--ink-0); font:11px var(--font-body); }
+.rights-label{ margin-top:11px; color:var(--ink-2); font:10px var(--font-mono); text-transform:uppercase; letter-spacing:.7px; }
+.user-create-form .right-option{ display:flex; grid-template-columns:none; align-items:center; gap:7px; margin-top:7px; color:var(--ink-1); }
+.right-option input{ accent-color:var(--amber); }
+.admin-create{ margin-top:11px; justify-content:center; }
+.user-create-message{ min-height:15px; margin:8px 0 0; font-size:10px; }
+.user-create-message.success{ color:var(--green); }
+.user-create-message.error{ color:var(--red); }
 .admin-action{ display:flex; align-items:center; gap:9px; width:100%; padding:10px; border:1px solid var(--line-soft); border-radius:var(--radius-s); background:transparent; color:var(--ink-1); cursor:pointer; font-size:12px; text-align:left; }
 .admin-action + .admin-action{ margin-top:7px; }
 .admin-action:hover{ background:var(--hull-2); color:var(--amber); }

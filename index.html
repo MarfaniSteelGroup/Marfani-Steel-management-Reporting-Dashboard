@@ -125,6 +125,16 @@
             <span>Signed in as</span>
             <strong>Admin</strong>
           </div>
+          <form class="user-create-form" id="userCreateForm">
+            <strong>Create read-only user</strong>
+            <label>User ID <input id="newUsername" type="text" minlength="3" maxlength="32" required></label>
+            <label>Password <input id="newPassword" type="password" minlength="8" required></label>
+            <div class="rights-label">User rights</div>
+            <label class="right-option"><input id="entryRight" type="checkbox"> Entry</label>
+            <label class="right-option"><input id="approvalRight" type="checkbox"> Approval</label>
+            <button class="admin-action admin-create" type="submit">Create user</button>
+            <p class="user-create-message" id="userCreateMessage" aria-live="polite"></p>
+          </form>
           <button class="admin-action" id="refreshReports" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4L3 10m0 0V4m0 6h6M4 13a8 8 0 0 0 14.9 4L21 14m0 0v6m0-6h-6"/></svg>
             Refresh reports
@@ -192,6 +202,31 @@
       adminTrigger.setAttribute('aria-expanded', String(isOpen));
     });
     document.getElementById('refreshReports').addEventListener('click', () => window.location.reload());
+    document.getElementById('userCreateForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const message = document.getElementById('userCreateMessage');
+      const payload = {
+        username: document.getElementById('newUsername').value,
+        password: document.getElementById('newPassword').value,
+        entry: document.getElementById('entryRight').checked,
+        approval: document.getElementById('approvalRight').checked
+      };
+      try {
+        const response = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Could not create user.');
+        message.textContent = `User ${result.username} created.`;
+        message.className = 'user-create-message success';
+        event.target.reset();
+      } catch (error) {
+        message.textContent = error.message;
+        message.className = 'user-create-message error';
+      }
+    });
     document.getElementById('adminLogout').addEventListener('click', async () => {
       sessionStorage.removeItem('marfani_admin_session');
       sessionStorage.removeItem('marfani_admin_role');

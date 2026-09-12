@@ -1,10 +1,12 @@
 {
   "Admin": {
     "password": "Marfani@12345",
-    "role": "admin"
+    "role": "admin",
+    "permissions": ["entry", "approval", "user_creation"]
   },
   "Viewer": {
     "password": "Marfani@view123",
-    "role": "viewer"
+    "role": "viewer",
+    "permissions": []
   }
 }
