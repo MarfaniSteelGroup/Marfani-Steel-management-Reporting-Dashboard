@@ -9,8 +9,49 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<style>
+  body.auth-locked > .hull { display: none; }
+  .auth-gate {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #12161b;
+    color: #eef0f2;
+    font-family: "IBM Plex Sans", sans-serif;
+  }
+  .auth-gate[hidden] { display: none; }
+  .auth-panel {
+    width: min(420px, 100%);
+    padding: 28px 24px;
+    border: 1px solid #323d48;
+    border-radius: 12px;
+    background: #181d24;
+    box-shadow: 0 18px 40px rgba(0,0,0,.25);
+  }
+  .auth-panel h1 { margin: 0 0 8px; font-family: Oswald, sans-serif; }
+  .auth-panel p { margin: 0 0 20px; color: #8b95a1; }
+  .auth-form { display: grid; gap: 14px; }
+  .auth-form label { display: grid; gap: 7px; font-size: 13px; }
+  .auth-form input { padding: 12px; border: 1px solid #323d48; border-radius: 8px; background: #10161b; color: #eef0f2; font: inherit; }
+  .auth-form button { padding: 12px; border: 0; border-radius: 8px; background: #e08a3e; color: #111a1d; font-weight: 600; cursor: pointer; }
+  .auth-error { min-height: 18px; margin: 0; color: #cc5f56; font-size: 13px; }
+</style>
 </head>
-<body>
+<body class="auth-locked">
+
+<section class="auth-gate" id="authGate">
+  <div class="auth-panel">
+    <h1>Admin Login</h1>
+    <p>Marfani Steels Management Reporting Deck</p>
+    <form class="auth-form" id="authForm">
+      <label>Admin ID <input id="authUsername" type="text" value="Admin" autocomplete="username" required></label>
+      <label>Password <input id="authPassword" type="password" autocomplete="current-password" required></label>
+      <p class="auth-error" id="authError" aria-live="polite"></p>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+</section>
 
 <div class="hull">
 
@@ -78,6 +119,29 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/views.js"></script>
+<script>
+  (() => {
+    const loggedIn = sessionStorage.getItem('marfani_admin_session') === '1';
+    const body = document.body;
+    const gate = document.getElementById('authGate');
+    if (loggedIn) {
+      body.classList.remove('auth-locked');
+      gate.hidden = true;
+    }
+    document.getElementById('authForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const username = document.getElementById('authUsername').value;
+      const password = document.getElementById('authPassword').value;
+      if (username === 'Admin' && password === 'Marfani@12345') {
+        sessionStorage.setItem('marfani_admin_session', '1');
+        body.classList.remove('auth-locked');
+        gate.hidden = true;
+        return;
+      }
+      document.getElementById('authError').textContent = 'Invalid admin ID or password.';
+    });
+  })();
+</script>
 <script src="js/app.js"></script>
 </body>
 </html>
