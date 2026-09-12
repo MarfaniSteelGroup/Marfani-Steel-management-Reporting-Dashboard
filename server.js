@@ -3,16 +3,58 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { Pool } = require('pg');
 const XLSX = require('xlsx');
 
 const ADMIN_USERNAME = 'Admin';
 const ADMIN_PASSWORD = 'Marfani@12345';
 const AUTH_COOKIE = 'marfani_admin_session';
 const USERS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.json'), 'utf8'));
+const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
 const LIVE_WORKBOOK_URL = 'https://marfanisteelpvtltd-my.sharepoint.com/personal/dms-msgroup_marfanisteel_com/Documents/CONTAINER%20CST%20-%20Final.xlsx.%20website.xlsm?ga=1';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+async function initializeUserStore() {
+  if (!pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_users (
+      username VARCHAR(32) PRIMARY KEY,
+      password TEXT NOT NULL,
+      role VARCHAR(20) NOT NULL,
+      permissions JSONB NOT NULL DEFAULT '[]'::jsonb
+    )
+  `);
+  for (const [username, account] of Object.entries(USERS)) {
+    await pool.query(`
+      INSERT INTO app_users (username, password, role, permissions)
+      VALUES ($1, $2, $3, $4::jsonb)
+      ON CONFLICT (username) DO NOTHING
+    `, [username, account.password, account.role, JSON.stringify(account.permissions || [])]);
+  }
+  const result = await pool.query('SELECT username, password, role, permissions FROM app_users');
+  Object.keys(USERS).forEach(username => delete USERS[username]);
+  result.rows.forEach(account => { USERS[account.username] = account; });
+}
+
+async function saveUser(account) {
+  if (pool) {
+    await pool.query(`
+      INSERT INTO app_users (username, password, role, permissions)
+      VALUES ($1, $2, $3, $4::jsonb)
+      ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, role = EXCLUDED.role, permissions = EXCLUDED.permissions
+    `, [account.username, account.password, account.role, JSON.stringify(account.permissions || [])]);
+    return;
+  }
+  fs.writeFileSync(path.join(__dirname, 'data', 'users.json'), `${JSON.stringify(USERS, null, 2)}\n`);
+}
+
+async function listUsers() {
+  if (!pool) return Object.entries(USERS).map(([username, account]) => ({ username, role: account.role, permissions: account.permissions || [] }));
+  const result = await pool.query('SELECT username, role, permissions FROM app_users ORDER BY username');
+  return result.rows;
+}
 
 async function downloadWorkbook() {
   const controller = new AbortController();
@@ -336,9 +378,13 @@ app.get('/login', (req, res) => {
   res.type('html').send(buildLoginPage());
 });
 
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
   const { username, password } = req.body || {};
-  const account = USERS[username];
+  let account = USERS[username];
+  if (pool) {
+    const result = await pool.query('SELECT username, password, role, permissions FROM app_users WHERE username = $1', [username]);
+    account = result.rows[0];
+  }
   if (account && account.password === password) {
     const value = Buffer.from(`${username}:${password}`).toString('base64');
     res.setHeader('Set-Cookie', `${AUTH_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax`);
@@ -382,17 +428,13 @@ app.get('/api/live-data/:name', async (req, res) => {
   }
 });
 
-app.get('/api/users', (req, res) => {
+app.get('/api/users', async (req, res) => {
   const session = getSessionUser(req);
   if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
-  res.json(Object.entries(USERS).map(([username, account]) => ({
-    username,
-    role: account.role,
-    permissions: account.permissions || []
-  })));
+  res.json(await listUsers());
 });
 
-app.patch('/api/users/:username/permissions', (req, res) => {
+app.patch('/api/users/:username/permissions', async (req, res) => {
   const session = getSessionUser(req);
   if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
 
@@ -403,11 +445,11 @@ app.patch('/api/users/:username/permissions', (req, res) => {
 
   const { entry, approval } = req.body || {};
   account.permissions = [entry ? 'entry' : '', approval ? 'approval' : ''].filter(Boolean);
-  fs.writeFileSync(path.join(__dirname, 'data', 'users.json'), `${JSON.stringify(USERS, null, 2)}\n`);
+  await saveUser({ username, ...account });
   res.json({ username, role: account.role, permissions: account.permissions });
 });
 
-app.post('/api/users', (req, res) => {
+app.post('/api/users', async (req, res) => {
   const session = getSessionUser(req);
   if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
 
@@ -416,15 +458,19 @@ app.post('/api/users', (req, res) => {
   if (!/^[A-Za-z0-9_-]{3,32}$/.test(cleanUsername) || String(password || '').length < 8) {
     return res.status(400).json({ error: 'Use a username of 3-32 letters/numbers and a password of at least 8 characters.' });
   }
-  if (USERS[cleanUsername]) return res.status(409).json({ error: 'That user already exists.' });
+  if (USERS[cleanUsername] || (pool && (await pool.query('SELECT 1 FROM app_users WHERE username = $1', [cleanUsername])).rowCount)) {
+    return res.status(409).json({ error: 'That user already exists.' });
+  }
 
-  USERS[cleanUsername] = {
+  const account = {
+    username: cleanUsername,
     password: String(password),
     role: 'viewer',
     permissions: [entry ? 'entry' : '', approval ? 'approval' : ''].filter(Boolean)
   };
-  fs.writeFileSync(path.join(__dirname, 'data', 'users.json'), `${JSON.stringify(USERS, null, 2)}\n`);
-  res.status(201).json({ username: cleanUsername, role: 'viewer', permissions: USERS[cleanUsername].permissions });
+  USERS[cleanUsername] = account;
+  await saveUser(account);
+  res.status(201).json({ username: cleanUsername, role: 'viewer', permissions: account.permissions });
 });
 
 app.use(express.static(path.join(__dirname)));
@@ -434,6 +480,9 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => {
+initializeUserStore().then(() => app.listen(PORT, () => {
   console.log(`Marfani Steel Group Reporting Deck running on port ${PORT}`);
+})).catch(error => {
+  console.error('User store initialization failed:', error);
+  process.exit(1);
 });

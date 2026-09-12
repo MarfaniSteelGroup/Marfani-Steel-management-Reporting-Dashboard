@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "express": "^4.19.2",
+    "pg": "^8.13.1",
     "xlsx": "^0.18.5"
   },
   "license": "UNLICENSED",
