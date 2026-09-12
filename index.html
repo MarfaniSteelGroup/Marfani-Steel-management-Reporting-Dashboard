@@ -223,6 +223,20 @@
       adminPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
     document.getElementById('refreshReports').addEventListener('click', () => window.location.reload());
+    const activeUsersList = document.getElementById('activeUsersList');
+    const loadActiveUsers = async () => {
+      try {
+        const response = await fetch('/api/users');
+        if (!response.ok) throw new Error('Local fallback');
+        const users = await response.json();
+        renderActiveUsers(users);
+      } catch (error) {
+        renderActiveUsers([
+          { username: 'Admin', role: 'admin', permissions: ['entry', 'approval', 'user_creation'] },
+          { username: 'Viewer', role: 'viewer', permissions: [] }
+        ]);
+      }
+    };
     document.getElementById('userCreateForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       const message = document.getElementById('userCreateMessage');
@@ -243,25 +257,12 @@
         message.textContent = `User ${result.username} created.`;
         message.className = 'user-create-message success';
         event.target.reset();
+        await loadActiveUsers();
       } catch (error) {
         message.textContent = error.message;
         message.className = 'user-create-message error';
       }
     });
-    const activeUsersList = document.getElementById('activeUsersList');
-    const loadActiveUsers = async () => {
-      try {
-        const response = await fetch('/api/users');
-        if (!response.ok) throw new Error('Local fallback');
-        const users = await response.json();
-        renderActiveUsers(users);
-      } catch (error) {
-        renderActiveUsers([
-          { username: 'Admin', role: 'admin', permissions: ['entry', 'approval', 'user_creation'] },
-          { username: 'Viewer', role: 'viewer', permissions: [] }
-        ]);
-      }
-    };
     const renderActiveUsers = (users) => {
       activeUsersList.innerHTML = users.map(user => `
           <div class="active-user" data-username="${esc(user.username)}">
