@@ -44,6 +44,16 @@ const DataStore = (() => {
   const cache = {};
   async function load(name){
     if(cache[name]) return cache[name];
+    try {
+      const live = await fetch(`/api/live-data/${name}`);
+      if(live.ok){
+        const json = await live.json();
+        cache[name] = json;
+        return json;
+      }
+    } catch(error) {
+      console.warn(`Live workbook unavailable for ${name}; using saved report data.`, error);
+    }
     const res = await fetch(`data/${name}.json`);
     if(!res.ok) throw new Error(`Failed to load ${name}`);
     const json = await res.json();

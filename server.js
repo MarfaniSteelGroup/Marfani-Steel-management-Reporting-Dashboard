@@ -3,14 +3,90 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+const XLSX = require('xlsx');
 
 const ADMIN_USERNAME = 'Admin';
 const ADMIN_PASSWORD = 'Marfani@12345';
 const AUTH_COOKIE = 'marfani_admin_session';
 const USERS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.json'), 'utf8'));
+const LIVE_WORKBOOK_URL = 'https://marfanisteelpvtltd-my.sharepoint.com/:x:/g/personal/dms-msgroup_marfanisteel_com/IQAkxFhUOv2wQIdzGqC5p7__AdUOyL2WEfeYENY4RJNv6lI?e=DIcp0h&download=1';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+function downloadWorkbook() {
+  return new Promise((resolve, reject) => {
+    https.get(LIVE_WORKBOOK_URL, response => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        https.get(response.headers.location, redirected => collectResponse(redirected, resolve, reject));
+        return;
+      }
+      collectResponse(response, resolve, reject);
+    }).on('error', reject);
+  });
+}
+
+function collectResponse(response, resolve, reject) {
+  if (response.statusCode !== 200) {
+    reject(new Error(`Workbook download failed with status ${response.statusCode}`));
+    return;
+  }
+  const chunks = [];
+  response.on('data', chunk => chunks.push(chunk));
+  response.on('end', () => resolve(Buffer.concat(chunks)));
+  response.on('error', reject);
+}
+
+function numberValue(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function liveRows(buffer, sheetName, headerRow) {
+  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  const sheet = workbook.Sheets[sheetName];
+  if (!sheet) throw new Error(`Workbook sheet not found: ${sheetName}`);
+  return XLSX.utils.sheet_to_json(sheet, { range: headerRow, defval: '' });
+}
+
+function liveFundPlanning(buffer) {
+  const rows = liveRows(buffer, 'Fund Planning Report', 2).map((row, index) => ({
+    sn: row['S. N.'] || index + 1,
+    bl_no: row['Last 6 Digit BL No.'],
+    order_status: row['Order Status'],
+    so_no: row['Sales Order No. '],
+    party_name: row['Party Name'],
+    composition: row['Composition/Grade'],
+    entity: row['Intity Name'],
+    no_of_cont: numberValue(row['No. of Cont.']),
+    container_eta: row['Cont. ETA Date'],
+    free_till: row['Free Till'],
+    cha_name: row['CHA Name'],
+    qty_kgs: numberValue(row['Qty In KGS']),
+    duty_approx_inr: numberValue(row['DUTY AMT APPROX in INR']),
+    amount_usd: numberValue(row['AMOUNT TO BE PAID IN USD']),
+    amount_payable_inr: numberValue(row['Amount payable in RS (APPROX)']),
+    total_required_inr: numberValue(row['Total Amount required\n(In INR)']),
+    remarks: row['Remarks']
+  })).filter(row => row.bl_no || row.party_name);
+  return {
+    asOn: new Date().toISOString().slice(0, 10),
+    rows,
+    totals: rows.reduce((totals, row) => ({
+      duty_approx_inr: totals.duty_approx_inr + row.duty_approx_inr,
+      amount_usd: totals.amount_usd + row.amount_usd,
+      amount_payable_inr: totals.amount_payable_inr + row.amount_payable_inr,
+      total_required_inr: totals.total_required_inr + row.total_required_inr
+    }), { duty_approx_inr: 0, amount_usd: 0, amount_payable_inr: 0, total_required_inr: 0 })
+  };
+}
+
+async function getLiveData(name) {
+  const buffer = await downloadWorkbook();
+  if (name === 'fund_planning') return liveFundPlanning(buffer);
+  throw new Error(`Live mapping is not available for ${name}`);
+}
 
 function buildLoginPage(errorMessage = '') {
   return `<!DOCTYPE html>
@@ -174,6 +250,16 @@ app.get('/api/session', (req, res) => {
   const user = getSessionUser(req);
   if (!user) return res.status(401).json({ authenticated: false });
   res.json({ authenticated: true, username: user.username, role: user.role, permissions: user.permissions });
+});
+
+app.get('/api/live-data/:name', async (req, res) => {
+  const session = getSessionUser(req);
+  if (!session) return res.status(401).json({ error: 'Login required.' });
+  try {
+    res.json(await getLiveData(req.params.name));
+  } catch (error) {
+    res.status(502).json({ error: error.message });
+  }
 });
 
 app.get('/api/users', (req, res) => {
