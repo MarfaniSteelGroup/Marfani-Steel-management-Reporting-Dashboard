@@ -86,6 +86,10 @@
         <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/></svg>
         <span>Shipment Costing</span>
       </button>
+      <button class="nav-item user-control-tab" id="userControlTab" type="button" hidden>
+        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm7-3v6m3-3h-6"/></svg>
+        <span>User Control</span>
+      </button>
     </nav>
 
     <div class="dock-foot">
@@ -164,13 +168,16 @@
     const gate = document.getElementById('authGate');
     const adminTrigger = document.getElementById('adminTrigger');
     const adminPanel = document.getElementById('adminPanel');
+    const userControlTab = document.getElementById('userControlTab');
     const setRole = (role, username) => {
       if (role === 'admin') {
         adminTrigger.hidden = false;
+        userControlTab.hidden = false;
         adminPanel.querySelector('.admin-session strong').textContent = username || 'Admin';
         return;
       }
       adminTrigger.hidden = true;
+      userControlTab.hidden = true;
       adminPanel.hidden = true;
       adminTrigger.setAttribute('aria-expanded', 'false');
     };
@@ -200,6 +207,11 @@
       const isOpen = adminPanel.hidden;
       adminPanel.hidden = !isOpen;
       adminTrigger.setAttribute('aria-expanded', String(isOpen));
+    });
+    userControlTab.addEventListener('click', () => {
+      adminPanel.hidden = false;
+      adminTrigger.setAttribute('aria-expanded', 'true');
+      adminPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
     document.getElementById('refreshReports').addEventListener('click', () => window.location.reload());
     document.getElementById('userCreateForm').addEventListener('submit', async (event) => {
