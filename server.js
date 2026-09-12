@@ -18,7 +18,7 @@ function buildLoginPage(errorMessage = '') {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Marfani Steels Admin Login</title>
+  <title>Marfani Steel Group Admin Login</title>
   <style>
     :root {
       --bg: #12161b;
@@ -102,7 +102,7 @@ function buildLoginPage(errorMessage = '') {
 <body>
   <div class="login-shell">
     <h1>Admin Login</h1>
-    <p>Marfani Steels Management Reporting Deck</p>
+    <p>Marfani Steel Group Management Reporting Deck</p>
     <form method="POST" action="/login">
       <label>
         Admin ID
@@ -214,5 +214,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Marfani Steels Reporting Deck running on port ${PORT}`);
+  console.log(`Marfani Steel Group Reporting Deck running on port ${PORT}`);
 });
