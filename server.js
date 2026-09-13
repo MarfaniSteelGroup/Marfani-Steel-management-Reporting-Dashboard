@@ -232,7 +232,7 @@ function liveFundPlanning(buffer) {
       party_name: row['Party Name'] || row['Party'],
       composition: row['Composition/Grade'] || row['Composition / Grade'] || row['Composition'],
       entity: row['Intity Name'] || row['Entity'],
-      rate_as_per_so_usd: numberValue(explicitRateValue ?? flexibleRateValue ?? (numberValue(qtyValue) > 0 ? amountToBePaidUsd / numberValue(qtyValue) : 0)),
+      rate_as_per_so_usd: numberValue(explicitRateValue ?? flexibleRateValue),
       no_of_cont: numberValue(row['No. of Cont.'] || row['No of Cont.'] || row['No. of Cont']),
       container_eta: row['Cont. ETA Date'] || row['Container ETA'] || row['Cont ETA Date'],
       free_till: row['Free Till'] || row['Free Till Date'],

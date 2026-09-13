@@ -264,7 +264,7 @@ Views.fundPlanning = async function(stage){
     }
     empty.style.display = 'none';
     body.innerHTML = filtered.slice(0, 500).map(r => {
-      const rateAsPerSoUsd = Number(r.rate_as_per_so_usd) || (Number(r.qty_kgs) > 0 ? Number(r.amount_usd) / Number(r.qty_kgs) : 0);
+      const rateAsPerSoUsd = Number(r.rate_as_per_so_usd);
       return `
       <tr>
         <td>${esc(r.sn)}</td>
