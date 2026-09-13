@@ -116,7 +116,7 @@
       <div class="admin-tools">
         <button class="admin-trigger" id="adminTrigger" type="button" aria-expanded="false" aria-controls="adminPanel" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8a7 7 0 0 1 14 0"/></svg>
-          <span>Admin</span>
+          <span id="currentUserLabel">User</span>
         </button>
         <section class="admin-panel" id="adminPanel" hidden>
           <div class="admin-panel-heading">
@@ -191,13 +191,16 @@
       if (role === 'admin') {
         adminTrigger.hidden = false;
         userControlTab.hidden = false;
-        adminPanel.querySelector('.admin-session strong').textContent = displayName || username || 'Admin';
+        const userLabel = displayName || username || 'Admin';
+        document.getElementById('currentUserLabel').textContent = userLabel;
+        adminPanel.querySelector('.admin-session strong').textContent = userLabel;
         return;
       }
       adminTrigger.hidden = true;
       userControlTab.hidden = true;
       adminPanel.hidden = true;
       adminTrigger.setAttribute('aria-expanded', 'false');
+      document.getElementById('currentUserLabel').textContent = displayName || username || 'User';
     };
 
     const checkSession = async () => {

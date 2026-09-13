@@ -229,6 +229,7 @@ svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; 
 }
 .admin-trigger:hover{ color:var(--amber); border-color:var(--amber-dim); }
 .admin-trigger svg{ width:16px; height:16px; }
+.admin-trigger span{ max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .admin-panel{
   position:fixed; inset:0; z-index:40;
   width:auto; max-height:none; overflow-y:auto; padding:clamp(24px, 5vw, 64px) clamp(18px, 7vw, 120px);
