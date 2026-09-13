@@ -243,18 +243,29 @@
       }
     });
 
+    const setUserControlActive = (active) => {
+      userControlTab.classList.toggle('active', active);
+      if (active) document.querySelectorAll('.nav-item[data-route]').forEach(item => item.classList.remove('active'));
+    };
+
     adminTrigger.addEventListener('click', () => {
       const isOpen = adminPanel.hidden;
       adminPanel.hidden = !isOpen;
       adminTrigger.setAttribute('aria-expanded', String(isOpen));
+      setUserControlActive(isOpen);
     });
-    userControlTab.addEventListener('click', () => {
+    userControlTab.addEventListener('click', (event) => {
+      event.stopPropagation();
       adminPanel.hidden = false;
       adminTrigger.setAttribute('aria-expanded', 'true');
+      setUserControlActive(true);
     });
     document.getElementById('adminPanelClose').addEventListener('click', () => {
       adminPanel.hidden = true;
       adminTrigger.setAttribute('aria-expanded', 'false');
+      setUserControlActive(false);
+      const currentRoute = (window.location.hash || '#overview').replace('#', '');
+      document.querySelector(`.nav-item[data-route="${currentRoute}"]`)?.classList.add('active');
     });
     document.getElementById('refreshReports').addEventListener('click', () => window.location.reload());
     const activeUsersList = document.getElementById('activeUsersList');
