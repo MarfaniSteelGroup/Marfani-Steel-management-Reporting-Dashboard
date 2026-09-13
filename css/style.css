@@ -230,16 +230,20 @@ svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; 
 .admin-trigger:hover{ color:var(--amber); border-color:var(--amber-dim); }
 .admin-trigger svg{ width:16px; height:16px; }
 .admin-panel{
-  position:absolute; right:0; top:calc(100% + 10px); z-index:10;
-  width:350px; padding:18px; border:1px solid var(--line);
-  border-radius:var(--radius-m); background:var(--hull-1);
-  box-shadow:0 16px 35px rgba(0,0,0,.32);
+  position:fixed; inset:0; z-index:40;
+  width:auto; max-height:none; overflow-y:auto; padding:clamp(24px, 5vw, 64px) clamp(18px, 7vw, 120px);
+  border:0; border-radius:0; background:var(--hull-0);
+  box-shadow:0 20px 50px rgba(0,0,0,.45);
 }
 .admin-panel[hidden]{ display:none; }
-.admin-panel-heading{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding-bottom:13px; border-bottom:1px solid var(--line-soft); }
+.admin-panel-heading, .admin-session, .user-create-form, .active-users, .admin-panel > .admin-action{ max-width:760px; margin-left:auto; margin-right:auto; }
+.admin-panel-heading{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding-bottom:18px; border-bottom:1px solid var(--line-soft); }
 .admin-panel-heading strong{ display:block; color:var(--ink-0); font-size:13px; }
 .admin-panel-heading span:not(.admin-status){ display:block; margin-top:4px; color:var(--ink-3); font-size:10px; }
 .admin-status{ color:var(--green); font:600 9px var(--font-mono); letter-spacing:1px; }
+.admin-panel-heading-actions{ display:flex; align-items:center; gap:18px; }
+.admin-panel-close{ width:34px; height:34px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--hull-2); color:var(--ink-1); cursor:pointer; font-size:22px; line-height:1; }
+.admin-panel-close:hover{ color:var(--amber); border-color:var(--amber-dim); }
 .admin-session{ display:flex; justify-content:space-between; padding:13px 0; color:var(--ink-2); font-size:12px; }
 .admin-session strong{ color:var(--ink-0); font-family:var(--font-mono); font-size:11px; }
 .user-create-form{ padding:13px 0; border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft); }
@@ -471,5 +475,5 @@ table.data .wrap{ white-space:normal; min-width:220px; }
   .welcome-user{ max-width: 140px; }
   .admin-trigger span{ display:none; }
   .admin-trigger{ padding:8px; }
-  .admin-panel{ right:-4px; width:min(350px, calc(100vw - 32px)); }
+  .admin-panel{ padding:24px 16px 40px; }
 }

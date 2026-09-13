@@ -124,7 +124,10 @@
               <strong>User control panel</strong>
               <span>Manage people, login access, and report rights</span>
             </div>
-            <span class="admin-status">ACTIVE</span>
+            <div class="admin-panel-heading-actions">
+              <span class="admin-status">ACTIVE</span>
+              <button class="admin-panel-close" id="adminPanelClose" type="button" aria-label="Close user control panel">&times;</button>
+            </div>
           </div>
           <div class="admin-session">
             <span>Signed in as</span>
@@ -248,7 +251,10 @@
     userControlTab.addEventListener('click', () => {
       adminPanel.hidden = false;
       adminTrigger.setAttribute('aria-expanded', 'true');
-      adminPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    document.getElementById('adminPanelClose').addEventListener('click', () => {
+      adminPanel.hidden = true;
+      adminTrigger.setAttribute('aria-expanded', 'false');
     });
     document.getElementById('refreshReports').addEventListener('click', () => window.location.reload());
     const activeUsersList = document.getElementById('activeUsersList');
