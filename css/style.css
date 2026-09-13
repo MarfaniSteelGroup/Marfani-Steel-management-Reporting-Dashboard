@@ -138,7 +138,7 @@ svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; 
   border-left-color: var(--amber);
 }
 .nav-item.active svg{ opacity:1; }
-.user-control-tab{ margin-top:12px; border-top:1px solid var(--line-soft); padding-top:15px; }
+.user-control-tab{ margin-top:12px; border-top:1px solid var(--line-soft); border-left-color:var(--amber); padding-top:15px; }
 .user-control-tab[hidden]{ display:none; }
 
 .dock-foot{
