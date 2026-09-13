@@ -42,10 +42,10 @@
 
 <section class="auth-gate" id="authGate">
   <div class="auth-panel">
-    <h1>Admin Login</h1>
+    <h1>User Login</h1>
     <p>Marfani Steel Group Management Reporting Deck</p>
     <form class="auth-form" id="authForm">
-      <label>Admin ID <input id="authUsername" type="text" value="Admin" autocomplete="username" required></label>
+      <label>User ID <input id="authUsername" type="text" value="Admin" autocomplete="username" required></label>
       <label>Password <input id="authPassword" type="password" autocomplete="current-password" required></label>
       <p class="auth-error" id="authError" aria-live="polite"></p>
       <button type="submit">Login</button>
@@ -152,6 +152,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4L3 10m0 0V4m0 6h6M4 13a8 8 0 0 0 14.9 4L21 14m0 0v6m0-6h-6"/></svg>
             Refresh reports
           </button>
+          <a class="admin-action" href="/download/container-cst" download>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg>
+            Download Container CST
+          </a>
           <button class="admin-action admin-logout" id="adminLogout" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5m5 5H3m9-9h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/></svg>
             Log out
@@ -171,8 +175,6 @@
 <script src="js/views.js"></script>
 <script>
   (() => {
-    const loggedIn = sessionStorage.getItem('marfani_admin_session') === '1';
-    const localRole = sessionStorage.getItem('marfani_admin_role') || '';
     const body = document.body;
     const gate = document.getElementById('authGate');
     const adminTrigger = document.getElementById('adminTrigger');
@@ -190,26 +192,48 @@
       adminPanel.hidden = true;
       adminTrigger.setAttribute('aria-expanded', 'false');
     };
-    if (loggedIn) {
-      body.classList.remove('auth-locked');
-      gate.hidden = true;
-      setRole(localRole, 'Admin');
-    }
-    document.getElementById('authForm').addEventListener('submit', (event) => {
-      event.preventDefault();
-      const username = document.getElementById('authUsername').value;
-      const password = document.getElementById('authPassword').value;
-      const role = username === 'Admin' && password === 'Marfani@12345' ? 'admin' :
-        username === 'Viewer' && password === 'Marfani@view123' ? 'viewer' : '';
-      if (role) {
-        sessionStorage.setItem('marfani_admin_session', '1');
-        sessionStorage.setItem('marfani_admin_role', role);
+
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/api/session', { credentials: 'same-origin' });
+        if (!response.ok) {
+          body.classList.add('auth-locked');
+          gate.hidden = false;
+          return;
+        }
+        const session = await response.json();
         body.classList.remove('auth-locked');
         gate.hidden = true;
-        setRole(role, username);
-        return;
+        setRole(session.role, session.username);
+      } catch (error) {
+        body.classList.add('auth-locked');
+        gate.hidden = false;
       }
-      document.getElementById('authError').textContent = 'Invalid admin ID or password.';
+    };
+
+    document.getElementById('authForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const username = document.getElementById('authUsername').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const form = new URLSearchParams({ username, password });
+
+      try {
+        const response = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          credentials: 'same-origin',
+          body: form.toString()
+        });
+
+        if (response.redirected || response.ok) {
+          await checkSession();
+          return;
+        }
+
+        document.getElementById('authError').textContent = 'Invalid user ID or password.';
+      } catch (error) {
+        document.getElementById('authError').textContent = 'Unable to connect to the server.';
+      }
     });
 
     adminTrigger.addEventListener('click', () => {
@@ -226,7 +250,7 @@
     const activeUsersList = document.getElementById('activeUsersList');
     const loadActiveUsers = async () => {
       try {
-        const response = await fetch('/api/users');
+        const response = await fetch('/api/users', { credentials: 'same-origin' });
         if (!response.ok) throw new Error('Local fallback');
         const users = await response.json();
         renderActiveUsers(users);
@@ -249,6 +273,7 @@
       try {
         const response = await fetch('/api/users', {
           method: 'POST',
+          credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
@@ -289,6 +314,7 @@
           try {
             const response = await fetch(`/api/users/${encodeURIComponent(username)}/permissions`, {
               method: 'PATCH',
+              credentials: 'same-origin',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
             });
@@ -310,13 +336,11 @@
     document.getElementById('adminLogout').addEventListener('click', async () => {
       sessionStorage.removeItem('marfani_admin_session');
       sessionStorage.removeItem('marfani_admin_role');
-      try { await fetch('/logout', { redirect: 'manual' }); } catch (error) { /* Static servers may not expose logout. */ }
+      try { await fetch('/logout', { redirect: 'manual', credentials: 'same-origin' }); } catch (error) { /* Static servers may not expose logout. */ }
       window.location.reload();
     });
 
-    fetch('/api/session').then(response => response.ok ? response.json() : null).then(session => {
-      if (session) setRole(session.role, session.username);
-    }).catch(() => {});
+    checkSession();
   })();
 </script>
 <script src="js/app.js"></script>

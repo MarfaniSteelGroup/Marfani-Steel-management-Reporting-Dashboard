@@ -232,6 +232,7 @@ Views.fundPlanning = async function(stage){
             <th>Order Status</th>
             <th>SO No.</th>
             <th>Party Name</th>
+            <th class="num">(as per SO) Rate (USD)</th>
             <th>Composition / Grade</th>
             <th>Entity</th>
             <th>No. of Cont.</th>
@@ -269,6 +270,7 @@ Views.fundPlanning = async function(stage){
         <td>${badge(r.order_status)}</td>
         <td>${esc(r.so_no)}</td>
         <td class="wrap">${esc(r.party_name)}</td>
+        <td class="num">${fmt.usd(r.rate_as_per_so_usd)}</td>
         <td class="wrap">${esc(r.composition)}</td>
         <td>${esc(r.entity)}</td>
         <td class="num">${typeof r.no_of_cont === 'number' ? fmt.num(r.no_of_cont) : esc(r.no_of_cont)}</td>

@@ -11,20 +11,58 @@ const ADMIN_PASSWORD = 'Marfani@12345';
 const AUTH_COOKIE = 'marfani_admin_session';
 const USERS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.json'), 'utf8'));
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
-const DEFAULT_LIVE_WORKBOOK_URL = 'https://marfanisteelpvtltd-my.sharepoint.com/:x:/g/personal/dms-msgroup_marfanisteel_com/IQAkxFhUOv2wQIdzGqC5p7__AdUOyL2WEfeYENY4RJNv6lI?e=PuSHZr';
-const configuredWorkbookUrl = process.env.LIVE_WORKBOOK_URL || '';
-const LIVE_WORKBOOK_URL = configuredWorkbookUrl && !configuredWorkbookUrl.includes('2CnNnP')
-  ? configuredWorkbookUrl
-  : DEFAULT_LIVE_WORKBOOK_URL;
+const DEFAULT_LIVE_WORKBOOK_URL = 'https://marfanisteelpvtltd-my.sharepoint.com/:x:/g/personal/dms-msgroup_marfanisteel_com/IQAkxFhUOv2wQIdzGqC5p7__AdUOyL2WEfeYENY4RJNv6lI?download=1';
+const configuredWorkbookUrl = (process.env.LIVE_WORKBOOK_URL || '').trim();
+const LIVE_WORKBOOK_URL = configuredWorkbookUrl || DEFAULT_LIVE_WORKBOOK_URL;
+const CONTAINER_CST_URL = LIVE_WORKBOOK_URL;
 
 function normalizeWorkbookUrl(url) {
   if (!url) return url;
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
+
+  if (trimmed.includes('drive.google.com/file/d/')) {
+    const match = trimmed.match(/\/file\/d\/([A-Za-z0-9_-]+)/);
+    if (match) return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+  }
+
+  if (trimmed.includes('drive.google.com/open?id=')) {
+    const match = trimmed.match(/[?&]id=([A-Za-z0-9_-]+)/);
+    if (match) return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+  }
+
+  if (trimmed.includes('drive.google.com/uc?')) {
+    return trimmed;
+  }
+
   if ((trimmed.includes('sharepoint.com') || trimmed.includes('onedrive.live.com')) && !/[?&]download=1/.test(trimmed)) {
     return `${trimmed}${trimmed.includes('?') ? '&' : '?'}download=1`;
   }
+
+  if (trimmed.includes('dropbox.com') && !/[?&]dl=1/.test(trimmed)) {
+    return `${trimmed}${trimmed.includes('?') ? '&' : '?'}dl=1`;
+  }
+
   return trimmed;
+}
+
+function getWorkbookDownloadCandidates(url) {
+  const normalized = normalizeWorkbookUrl(url);
+  const candidates = new Set([normalized]);
+
+  if (normalized.includes('sharepoint.com') || normalized.includes('onedrive.live.com')) {
+    candidates.add(`${normalized}${normalized.includes('?') ? '&' : '?'}download=1`);
+    candidates.add(normalized.replace(/([?&])download=1/, '$1download=1'));
+  }
+
+  if (normalized.includes('drive.google.com/uc?')) {
+    const directUrl = new URL(normalized);
+    directUrl.searchParams.set('export', 'download');
+    directUrl.searchParams.set('confirm', '1');
+    candidates.add(directUrl.toString());
+  }
+
+  return [...candidates];
 }
 
 const app = express();
@@ -71,39 +109,55 @@ async function listUsers() {
 }
 
 async function downloadWorkbook() {
-  const workbookUrl = normalizeWorkbookUrl(LIVE_WORKBOOK_URL);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 22000);
-  let response;
-  try {
-    response = await fetch(workbookUrl, {
-      redirect: 'follow',
-      signal: controller.signal,
-      credentials: 'include',
-      headers: {
-        Accept: 'application/vnd.ms-excel.sheet.macroEnabled.12,application/octet-stream,*/*',
-        'User-Agent': 'Mozilla/5.0 Marfani-Steel-Reporting'
+  const candidates = getWorkbookDownloadCandidates(LIVE_WORKBOOK_URL);
+  let lastError = null;
+
+  for (const workbookUrl of candidates) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 22000);
+      let response;
+      try {
+        response = await fetch(workbookUrl, {
+          redirect: 'follow',
+          signal: controller.signal,
+          credentials: 'omit',
+          headers: {
+            Accept: 'application/vnd.ms-excel.sheet.macroEnabled.12,application/octet-stream,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*',
+            'User-Agent': 'Mozilla/5.0 Marfani-Steel-Reporting'
+          }
+        });
+      } finally {
+        clearTimeout(timeout);
       }
-    });
-  } finally {
-    clearTimeout(timeout);
+
+      const contentType = response.headers.get('content-type') || '';
+      const finalUrl = response.url || workbookUrl;
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      if (!response.ok) {
+        throw new Error(`Workbook download failed with status ${response.status} for ${finalUrl}`);
+      }
+
+      const isExcelBinary = contentType.includes('excel') || contentType.includes('spreadsheet') || contentType.includes('octet-stream') || buffer.slice(0, 2).toString() === 'PK';
+      const isLoginPage = /sign in|login.microsoftonline.com|oauth2|microsoftonline/i.test(buffer.toString('utf8', 0, 2500));
+
+      if (!isExcelBinary || isLoginPage) {
+        throw new Error(`The workbook URL did not return an actual Excel file. Received: ${contentType || 'unknown'} from ${finalUrl}`);
+      }
+
+      if (!buffer.length) {
+        throw new Error('Downloaded workbook is empty. Check the LIVE_WORKBOOK_URL in the deployment environment.');
+      }
+
+      return buffer;
+    } catch (error) {
+      lastError = error;
+      console.warn(`Live workbook fetch attempt failed for ${workbookUrl}:`, error.message);
+    }
   }
 
-  if (!response.ok) {
-    throw new Error(`Workbook download failed with status ${response.status} for ${workbookUrl}`);
-  }
-
-  const contentType = response.headers.get('content-type') || '';
-  const buffer = Buffer.from(await response.arrayBuffer());
-  if (!contentType.includes('excel') && !contentType.includes('octet-stream') && buffer.slice(0, 2).toString() !== 'PK') {
-    throw new Error(`SharePoint returned ${contentType || 'an unknown content type'} instead of an Excel workbook`);
-  }
-
-  if (!buffer.length) {
-    throw new Error('Downloaded workbook is empty. Check the LIVE_WORKBOOK_URL in the deployment environment.');
-  }
-
-  return buffer;
+  throw new Error(lastError ? lastError.message : 'Unable to download the live workbook. Update LIVE_WORKBOOK_URL to a public Excel file URL.');
 }
 
 function loadStaticReport(name) {
@@ -135,6 +189,18 @@ function liveFundPlanning(buffer) {
       headers[String(header).trim().toLowerCase().replace(/\s+/g, ' ')] = row[header];
       return headers;
     }, {});
+    const rateAsPerSoUsdValue = [
+      'rate as per so in usd',
+      'rate as per so usd',
+      'rate as per so (usd)',
+      'rate as per so in us$',
+      'rate per so in usd',
+      'rate per so usd',
+      'rate in usd',
+      'rate usd',
+      'rate as per so ($)',
+      'rate as per so us$'
+    ].map(header => normalizedHeaders[header]).find(value => value !== undefined && value !== '');
     const advanceValue = [
       'advance amount paid',
       'advance amount paid (usd)',
@@ -158,6 +224,7 @@ function liveFundPlanning(buffer) {
       party_name: row['Party Name'] || row['Party'],
       composition: row['Composition/Grade'] || row['Composition / Grade'] || row['Composition'],
       entity: row['Intity Name'] || row['Entity'],
+      rate_as_per_so_usd: numberValue(rateAsPerSoUsdValue ?? row['Rate as per SO (USD)'] ?? row['Rate As Per SO (USD)'] ?? row['Rate as per SO in USD'] ?? row['Rate As Per SO In USD'] ?? row['Rate Per SO In USD'] ?? row['Rate per SO (USD)'] ?? row['Rate in USD'] ?? row['Rate USD']),
       no_of_cont: numberValue(row['No. of Cont.'] || row['No of Cont.'] || row['No. of Cont']),
       container_eta: row['Cont. ETA Date'] || row['Container ETA'] || row['Cont ETA Date'],
       free_till: row['Free Till'] || row['Free Till Date'],
@@ -177,10 +244,11 @@ function liveFundPlanning(buffer) {
     totals: rows.reduce((totals, row) => ({
       duty_approx_inr: totals.duty_approx_inr + row.duty_approx_inr,
       amount_usd: totals.amount_usd + row.amount_usd,
+      rate_as_per_so_usd: totals.rate_as_per_so_usd + row.rate_as_per_so_usd,
       advance_amount_paid_usd: totals.advance_amount_paid_usd + (row.advance_amount_paid_usd || 0),
       amount_payable_inr: totals.amount_payable_inr + row.amount_payable_inr,
       total_required_inr: totals.total_required_inr + row.total_required_inr
-    }), { duty_approx_inr: 0, amount_usd: 0, advance_amount_paid_usd: 0, amount_payable_inr: 0, total_required_inr: 0 })
+    }), { duty_approx_inr: 0, amount_usd: 0, rate_as_per_so_usd: 0, advance_amount_paid_usd: 0, amount_payable_inr: 0, total_required_inr: 0 })
   };
 }
 
@@ -299,7 +367,7 @@ function buildLoginPage(errorMessage = '') {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Marfani Steel Group Admin Login</title>
+  <title>Marfani Steel Group User Login</title>
   <style>
     :root {
       --bg: #12161b;
@@ -382,11 +450,11 @@ function buildLoginPage(errorMessage = '') {
 </head>
 <body>
   <div class="login-shell">
-    <h1>Admin Login</h1>
+    <h1>User Login</h1>
     <p>Marfani Steel Group Management Reporting Deck</p>
     <form method="POST" action="/login">
       <label>
-        Admin ID
+        User ID
         <input name="username" type="text" value="Admin" required />
       </label>
       <label>
@@ -441,7 +509,7 @@ app.post('/login', async (req, res) => {
     return res.redirect('/');
   }
 
-  res.status(401).type('html').send(buildLoginPage('Invalid admin ID or password.'));
+  res.status(401).type('html').send(buildLoginPage('Invalid user ID or password.'));
 });
 
 app.get('/logout', (req, res) => {
@@ -471,10 +539,11 @@ app.get('/api/live-data/:name', async (req, res) => {
     res.setHeader('X-Data-Source', 'live-excel');
     res.json(await getLiveData(req.params.name));
   } catch (error) {
-    console.error(`Live workbook unavailable for ${req.params.name}:`, error.message);
+    console.error(`Live workbook unavailable for ${req.params.name}. Update LIVE_WORKBOOK_URL to a public Excel file link or use the static JSON fallback.`, error.message);
     try {
+      const fallback = loadStaticReport(req.params.name);
       res.setHeader('X-Data-Source', 'static-fallback');
-      res.json(loadStaticReport(req.params.name));
+      res.json(fallback);
     } catch (fallbackError) {
       res.status(502).json({ error: fallbackError.message });
     }
@@ -524,6 +593,38 @@ app.post('/api/users', async (req, res) => {
   USERS[cleanUsername] = account;
   await saveUser(account);
   res.status(201).json({ username: cleanUsername, role: 'viewer', permissions: account.permissions });
+});
+
+app.get('/download/container-cst', async (req, res) => {
+  if (!CONTAINER_CST_URL) {
+    return res.status(404).send('Container CST Excel file is not configured. Set CONTAINER_CST_URL to a public direct download URL.');
+  }
+
+  let lastError = null;
+  for (const workbookUrl of getWorkbookDownloadCandidates(CONTAINER_CST_URL)) {
+    try {
+      const response = await fetch(workbookUrl, {
+        redirect: 'follow',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 Marfani-Steel-Reporting',
+          Accept: 'application/vnd.ms-excel.sheet.macroEnabled.12,application/octet-stream,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*'
+        }
+      });
+      const contentType = response.headers.get('content-type') || '';
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const isExcelBinary = contentType.includes('excel') || contentType.includes('spreadsheet') || contentType.includes('octet-stream') || buffer.slice(0, 2).toString() === 'PK';
+      if (!response.ok || !isExcelBinary || /sign in|login.microsoftonline.com|oauth2|microsoftonline/i.test(buffer.toString('utf8', 0, 2500))) {
+        throw new Error(`Download did not return an Excel file: ${contentType || 'unknown'} from ${response.url || workbookUrl}`);
+      }
+      res.setHeader('Content-Type', contentType || 'application/vnd.ms-excel');
+      res.setHeader('Content-Disposition', 'attachment; filename="CONTAINER_CST_Final.xlsm"');
+      return res.send(buffer);
+    } catch (error) {
+      lastError = error;
+      console.warn('Container CST download attempt failed:', error.message);
+    }
+  }
+  return res.status(502).send(`The public Excel file could not be downloaded. ${lastError ? lastError.message : ''}`);
 });
 
 app.use(express.static(path.join(__dirname)));
