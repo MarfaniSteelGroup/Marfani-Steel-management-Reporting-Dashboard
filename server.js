@@ -191,7 +191,11 @@ function liveFundPlanning(buffer) {
       headers[String(header).trim().toLowerCase().replace(/\s+/g, ' ')] = row[header];
       return headers;
     }, {});
-    const rateAsPerSoUsdValue = [
+    const compactHeaders = Object.keys(row).reduce((headers, header) => {
+      headers[String(header).toLowerCase().replace(/[^a-z0-9]+/g, '')] = row[header];
+      return headers;
+    }, {});
+    const explicitRateValue = [
       'rate as per so in usd',
       'rate as per so usd',
       'rate as per so (usd)',
@@ -203,6 +207,8 @@ function liveFundPlanning(buffer) {
       'rate as per so ($)',
       'rate as per so us$'
     ].map(header => normalizedHeaders[header]).find(value => value !== undefined && value !== '');
+    const flexibleRateValue = Object.entries(compactHeaders)
+      .find(([header, value]) => header.includes('rate') && header.includes('so') && value !== undefined && value !== '')?.[1];
     const advanceValue = [
       'advance amount paid',
       'advance amount paid (usd)',
@@ -226,7 +232,7 @@ function liveFundPlanning(buffer) {
       party_name: row['Party Name'] || row['Party'],
       composition: row['Composition/Grade'] || row['Composition / Grade'] || row['Composition'],
       entity: row['Intity Name'] || row['Entity'],
-      rate_as_per_so_usd: numberValue(rateAsPerSoUsdValue ?? row['Rate as per SO (USD)'] ?? row['Rate As Per SO (USD)'] ?? row['Rate as per SO in USD'] ?? row['Rate As Per SO In USD'] ?? row['Rate Per SO In USD'] ?? row['Rate per SO (USD)'] ?? row['Rate in USD'] ?? row['Rate USD']),
+      rate_as_per_so_usd: numberValue(explicitRateValue ?? flexibleRateValue ?? (numberValue(qtyValue) > 0 ? amountToBePaidUsd / numberValue(qtyValue) : 0)),
       no_of_cont: numberValue(row['No. of Cont.'] || row['No of Cont.'] || row['No. of Cont']),
       container_eta: row['Cont. ETA Date'] || row['Container ETA'] || row['Cont ETA Date'],
       free_till: row['Free Till'] || row['Free Till Date'],

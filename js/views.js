@@ -263,14 +263,16 @@ Views.fundPlanning = async function(stage){
       return;
     }
     empty.style.display = 'none';
-    body.innerHTML = filtered.slice(0, 500).map(r => `
+    body.innerHTML = filtered.slice(0, 500).map(r => {
+      const rateAsPerSoUsd = Number(r.rate_as_per_so_usd) || (Number(r.qty_kgs) > 0 ? Number(r.amount_usd) / Number(r.qty_kgs) : 0);
+      return `
       <tr>
         <td>${esc(r.sn)}</td>
         <td>${esc(r.bl_no)}</td>
         <td>${badge(r.order_status)}</td>
         <td>${esc(r.so_no)}</td>
         <td class="wrap">${esc(r.party_name)}</td>
-        <td class="num">${fmt.usd(r.rate_as_per_so_usd)}</td>
+        <td class="num">${fmt.usd(rateAsPerSoUsd)}</td>
         <td class="wrap">${esc(r.composition)}</td>
         <td>${esc(r.entity)}</td>
         <td class="num">${typeof r.no_of_cont === 'number' ? fmt.num(r.no_of_cont) : esc(r.no_of_cont)}</td>
@@ -285,7 +287,8 @@ Views.fundPlanning = async function(stage){
         <td class="num">${fmt.inr(r.total_required_inr)}</td>
         <td class="wrap">${esc(r.remarks)}</td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   }
 
   function applyFilters(){
