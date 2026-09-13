@@ -3,12 +3,25 @@
     "display_name": "Marfani Administrator",
     "password": "Marfani@12345",
     "role": "admin",
-    "permissions": ["entry", "approval", "user_creation"]
+    "permissions": [
+      "entry",
+      "approval",
+      "user_creation"
+    ]
   },
   "Viewer": {
     "display_name": "Reporting Viewer",
     "password": "Marfani@view123",
     "role": "viewer",
     "permissions": []
+  },
+  "Parvi": {
+    "username": "Parvi",
+    "display_name": "Parvi Tembhare",
+    "password": "Magic@123@",
+    "role": "viewer",
+    "permissions": [
+      "entry"
+    ]
   }
 }
