@@ -183,8 +183,18 @@ function liveRows(buffer, sheetName, headerRow) {
   return XLSX.utils.sheet_to_json(sheet, { range: headerRow, defval: '' });
 }
 
+function liveColumnValues(buffer, sheetName, headerRow, columnIndex) {
+  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  const sheet = workbook.Sheets[sheetName];
+  if (!sheet) throw new Error(`Workbook sheet not found: ${sheetName}`);
+  const rows = XLSX.utils.sheet_to_json(sheet, { range: headerRow, header: 1, defval: '' });
+  return rows.slice(1).map(row => row[columnIndex]);
+}
+
 function liveFundPlanning(buffer) {
-  const rows = liveRows(buffer, 'Fund Planning Report', 2).map((row, index) => {
+  const sourceRows = liveRows(buffer, 'Fund Planning Report', 2);
+  const rateColumnValues = liveColumnValues(buffer, 'Fund Planning Report', 2, 17);
+  const rows = sourceRows.map((row, index) => {
     const qtyValue = row['Qty In KGS'] || row['Qty (KGS)'] || row['Qty in KGS'];
     const amountToBePaidUsd = numberValue(row['AMOUNT TO BE PAID IN USD'] || row['Amount to be Paid (USD)'] || row['Amount To Be Paid In USD']);
     const normalizedHeaders = Object.keys(row).reduce((headers, header) => {
@@ -232,7 +242,7 @@ function liveFundPlanning(buffer) {
       party_name: row['Party Name'] || row['Party'],
       composition: row['Composition/Grade'] || row['Composition / Grade'] || row['Composition'],
       entity: row['Intity Name'] || row['Entity'],
-      rate_as_per_so_usd: numberValue(explicitRateValue ?? flexibleRateValue),
+      rate_as_per_so_usd: numberValue(rateColumnValues[index] ?? explicitRateValue ?? flexibleRateValue),
       no_of_cont: numberValue(row['No. of Cont.'] || row['No of Cont.'] || row['No. of Cont']),
       container_eta: row['Cont. ETA Date'] || row['Container ETA'] || row['Cont ETA Date'],
       free_till: row['Free Till'] || row['Free Till Date'],
