@@ -3,11 +3,14 @@ services:
     name: marfani-steels-reporting-deck
     env: node
     plan: free
+    autoDeployTrigger: commit
     buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
         value: 18.20.0
+      - key: LIVE_WORKBOOK_URL
+        value: https://marfanisteelpvtltd-my.sharepoint.com/:x:/g/personal/dms-msgroup_marfanisteel_com/IQAkxFhUOv2wQIdzGqC5p7__AdUOyL2WEfeYENY4RJNv6lI?e=PuSHZr
       - key: DATABASE_URL
         fromDatabase:
           name: marfani-users-db

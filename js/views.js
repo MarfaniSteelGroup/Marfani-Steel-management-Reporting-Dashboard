@@ -213,11 +213,11 @@ Views.fundPlanning = async function(stage){
 
     <div class="panel">
       <div class="panel-head">
-        <h3 class="panel-title">Party-Wise Fund Requirement</h3>
+        <h3 class="panel-title">Fund Planning Details</h3>
         <span class="panel-note">${d.rows.length} line items &middot; as on ${d.asOn}</span>
       </div>
       <div class="controls">
-        <input class="control-input" id="fpSearch" placeholder="Search BL no., party, CHA...">
+        <input class="control-input" id="fpSearch" placeholder="Search BL no., SO, party, CHA...">
         <div class="pill-group" id="fpPills">
           <button class="pill active" data-v="all">All</button>
           <button class="pill" data-v="Active">Active</button>
@@ -227,9 +227,24 @@ Views.fundPlanning = async function(stage){
       <div class="table-wrap">
         <table class="data">
           <thead><tr>
-            <th>S.N.</th><th>BL No.</th><th>Status</th><th>Party</th><th>Entity</th>
-            <th>CHA</th><th class="num">Qty (KGS)</th><th class="num">Duty Approx.</th>
-            <th class="num">Amt USD</th><th class="num">Total Required (INR)</th>
+            <th>S.N.</th>
+            <th>BL No.</th>
+            <th>Order Status</th>
+            <th>SO No.</th>
+            <th>Party Name</th>
+            <th>Composition / Grade</th>
+            <th>Entity</th>
+            <th>No. of Cont.</th>
+            <th>Container ETA</th>
+            <th>Free Till</th>
+            <th>CHA Name</th>
+            <th class="num">Qty (KGS)</th>
+            <th class="num">Duty Approx. (INR)</th>
+            <th class="num">Advance Amount Paid (USD)</th>
+            <th class="num">Amount to be Paid (USD)</th>
+            <th class="num">Amount Payable (INR)</th>
+            <th class="num">Total Amount (INR Approx.)</th>
+            <th>Remarks</th>
           </tr></thead>
           <tbody id="fpBody"></tbody>
         </table>
@@ -247,26 +262,34 @@ Views.fundPlanning = async function(stage){
       return;
     }
     empty.style.display = 'none';
-    body.innerHTML = filtered.slice(0, 200).map(r => `
+    body.innerHTML = filtered.slice(0, 500).map(r => `
       <tr>
         <td>${esc(r.sn)}</td>
         <td>${esc(r.bl_no)}</td>
         <td>${badge(r.order_status)}</td>
+        <td>${esc(r.so_no)}</td>
         <td class="wrap">${esc(r.party_name)}</td>
+        <td class="wrap">${esc(r.composition)}</td>
         <td>${esc(r.entity)}</td>
+        <td class="num">${typeof r.no_of_cont === 'number' ? fmt.num(r.no_of_cont) : esc(r.no_of_cont)}</td>
+        <td>${esc(r.container_eta)}</td>
+        <td>${esc(r.free_till)}</td>
         <td>${esc(r.cha_name)}</td>
         <td class="num">${typeof r.qty_kgs === 'number' ? fmt.num(r.qty_kgs) : esc(r.qty_kgs)}</td>
         <td class="num">${fmt.inr(r.duty_approx_inr)}</td>
+        <td class="num">${fmt.usd(r.advance_amount_paid_usd)}</td>
         <td class="num">${fmt.usd(r.amount_usd)}</td>
-        <td class="num">${typeof r.total_required_inr === 'number' ? fmt.inr(r.total_required_inr) : esc(r.total_required_inr)}</td>
+        <td class="num">${fmt.inr(r.amount_payable_inr)}</td>
+        <td class="num">${fmt.inr(r.total_required_inr)}</td>
+        <td class="wrap">${esc(r.remarks)}</td>
       </tr>
     `).join('');
   }
 
   function applyFilters(){
     filtered = d.rows.filter(r => {
-      const matchesStatus = statusFilter === 'all' || r.order_status === statusFilter;
-      const hay = `${r.bl_no} ${r.party_name} ${r.cha_name} ${r.so_no}`.toLowerCase();
+      const matchesStatus = statusFilter === 'all' || (r.order_status || '').toLowerCase() === statusFilter.toLowerCase();
+      const hay = `${r.bl_no || ''} ${r.so_no || ''} ${r.party_name || ''} ${r.cha_name || ''} ${r.entity || ''}`.toLowerCase();
       const matchesQuery = !query || hay.includes(query);
       return matchesStatus && matchesQuery;
     });

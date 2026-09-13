@@ -11,7 +11,21 @@ const ADMIN_PASSWORD = 'Marfani@12345';
 const AUTH_COOKIE = 'marfani_admin_session';
 const USERS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.json'), 'utf8'));
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
-const LIVE_WORKBOOK_URL = 'https://marfanisteelpvtltd-my.sharepoint.com/personal/dms-msgroup_marfanisteel_com/Documents/CONTAINER%20CST%20-%20Final.xlsx.%20website.xlsm?ga=1';
+const DEFAULT_LIVE_WORKBOOK_URL = 'https://marfanisteelpvtltd-my.sharepoint.com/:x:/g/personal/dms-msgroup_marfanisteel_com/IQAkxFhUOv2wQIdzGqC5p7__AdUOyL2WEfeYENY4RJNv6lI?e=PuSHZr';
+const configuredWorkbookUrl = process.env.LIVE_WORKBOOK_URL || '';
+const LIVE_WORKBOOK_URL = configuredWorkbookUrl && !configuredWorkbookUrl.includes('2CnNnP')
+  ? configuredWorkbookUrl
+  : DEFAULT_LIVE_WORKBOOK_URL;
+
+function normalizeWorkbookUrl(url) {
+  if (!url) return url;
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  if ((trimmed.includes('sharepoint.com') || trimmed.includes('onedrive.live.com')) && !/[?&]download=1/.test(trimmed)) {
+    return `${trimmed}${trimmed.includes('?') ? '&' : '?'}download=1`;
+  }
+  return trimmed;
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,13 +71,15 @@ async function listUsers() {
 }
 
 async function downloadWorkbook() {
+  const workbookUrl = normalizeWorkbookUrl(LIVE_WORKBOOK_URL);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(() => controller.abort(), 22000);
   let response;
   try {
-    response = await fetch(LIVE_WORKBOOK_URL, {
+    response = await fetch(workbookUrl, {
       redirect: 'follow',
       signal: controller.signal,
+      credentials: 'include',
       headers: {
         Accept: 'application/vnd.ms-excel.sheet.macroEnabled.12,application/octet-stream,*/*',
         'User-Agent': 'Mozilla/5.0 Marfani-Steel-Reporting'
@@ -72,12 +88,21 @@ async function downloadWorkbook() {
   } finally {
     clearTimeout(timeout);
   }
-  if (!response.ok) throw new Error(`Workbook download failed with status ${response.status}`);
+
+  if (!response.ok) {
+    throw new Error(`Workbook download failed with status ${response.status} for ${workbookUrl}`);
+  }
+
   const contentType = response.headers.get('content-type') || '';
   const buffer = Buffer.from(await response.arrayBuffer());
   if (!contentType.includes('excel') && !contentType.includes('octet-stream') && buffer.slice(0, 2).toString() !== 'PK') {
     throw new Error(`SharePoint returned ${contentType || 'an unknown content type'} instead of an Excel workbook`);
   }
+
+  if (!buffer.length) {
+    throw new Error('Downloaded workbook is empty. Check the LIVE_WORKBOOK_URL in the deployment environment.');
+  }
+
   return buffer;
 }
 
@@ -103,34 +128,59 @@ function liveRows(buffer, sheetName, headerRow) {
 }
 
 function liveFundPlanning(buffer) {
-  const rows = liveRows(buffer, 'Fund Planning Report', 2).map((row, index) => ({
-    sn: row['S. N.'] || index + 1,
-    bl_no: row['Last 6 Digit BL No.'],
-    order_status: row['Order Status'],
-    so_no: row['Sales Order No. '],
-    party_name: row['Party Name'],
-    composition: row['Composition/Grade'],
-    entity: row['Intity Name'],
-    no_of_cont: numberValue(row['No. of Cont.']),
-    container_eta: row['Cont. ETA Date'],
-    free_till: row['Free Till'],
-    cha_name: row['CHA Name'],
-    qty_kgs: numberValue(row['Qty In KGS']),
-    duty_approx_inr: numberValue(row['DUTY AMT APPROX in INR']),
-    amount_usd: numberValue(row['AMOUNT TO BE PAID IN USD']),
-    amount_payable_inr: numberValue(row['Amount payable in RS (APPROX)']),
-    total_required_inr: numberValue(row['Total Amount required\n(In INR)']),
-    remarks: row['Remarks']
-  })).filter(row => row.bl_no || row.party_name);
+  const rows = liveRows(buffer, 'Fund Planning Report', 2).map((row, index) => {
+    const qtyValue = row['Qty In KGS'] || row['Qty (KGS)'] || row['Qty in KGS'];
+    const amountToBePaidUsd = numberValue(row['AMOUNT TO BE PAID IN USD'] || row['Amount to be Paid (USD)'] || row['Amount To Be Paid In USD']);
+    const normalizedHeaders = Object.keys(row).reduce((headers, header) => {
+      headers[String(header).trim().toLowerCase().replace(/\s+/g, ' ')] = row[header];
+      return headers;
+    }, {});
+    const advanceValue = [
+      'advance amount paid',
+      'advance amount paid (usd)',
+      'advance amount paid usd',
+      'advance amount paid in usd',
+      'advance paid',
+      'advance paid (usd)',
+      'advance paid usd',
+      'advance amount',
+      'advance amt paid'
+    ].map(header => normalizedHeaders[header]).find(value => value !== undefined && value !== '');
+    const advanceAmountPaidUsd = advanceValue !== undefined
+      ? numberValue(advanceValue)
+      : (String(qtyValue || '').toLowerCase().startsWith('advance') ? amountToBePaidUsd : 0);
+
+    return {
+      sn: row['S. N.'] || row['S.No.'] || index + 1,
+      bl_no: row['Last 6 Digit BL No.'] || row['BL No.'] || row['Last 6 Digit BL No'] || row['Last 6 Digit BL. No.'],
+      order_status: row['Order Status'] || row['Status'],
+      so_no: row['Sales Order No. '] || row['SO No.'] || row['Sales Order No.'],
+      party_name: row['Party Name'] || row['Party'],
+      composition: row['Composition/Grade'] || row['Composition / Grade'] || row['Composition'],
+      entity: row['Intity Name'] || row['Entity'],
+      no_of_cont: numberValue(row['No. of Cont.'] || row['No of Cont.'] || row['No. of Cont']),
+      container_eta: row['Cont. ETA Date'] || row['Container ETA'] || row['Cont ETA Date'],
+      free_till: row['Free Till'] || row['Free Till Date'],
+      cha_name: row['CHA Name'] || row['CHA'],
+      qty_kgs: numberValue(qtyValue),
+      duty_approx_inr: numberValue(row['DUTY AMT APPROX in INR'] || row['Duty Approx. (INR)'] || row['Duty Approximation in INR']),
+      amount_usd: amountToBePaidUsd,
+      advance_amount_paid_usd: advanceAmountPaidUsd,
+      amount_payable_inr: numberValue(row['Amount payable in RS (APPROX)'] || row['Amount Payable (INR)'] || row['Amount payable in INR']),
+      total_required_inr: numberValue(row['Total Amount required\n(In INR)'] || row['Total Amount required (In INR)'] || row['Total Amount (INR Approx.)']),
+      remarks: row['Remarks'] || row['Remark']
+    };
+  }).filter(row => row.bl_no || row.party_name);
   return {
     asOn: new Date().toISOString().slice(0, 10),
     rows,
     totals: rows.reduce((totals, row) => ({
       duty_approx_inr: totals.duty_approx_inr + row.duty_approx_inr,
       amount_usd: totals.amount_usd + row.amount_usd,
+      advance_amount_paid_usd: totals.advance_amount_paid_usd + (row.advance_amount_paid_usd || 0),
       amount_payable_inr: totals.amount_payable_inr + row.amount_payable_inr,
       total_required_inr: totals.total_required_inr + row.total_required_inr
-    }), { duty_approx_inr: 0, amount_usd: 0, amount_payable_inr: 0, total_required_inr: 0 })
+    }), { duty_approx_inr: 0, amount_usd: 0, advance_amount_paid_usd: 0, amount_payable_inr: 0, total_required_inr: 0 })
   };
 }
 
@@ -414,6 +464,9 @@ app.get('/api/session', (req, res) => {
 app.get('/api/live-data/:name', async (req, res) => {
   const session = getSessionUser(req);
   if (!session) return res.status(401).json({ error: 'Login required.' });
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   try {
     res.setHeader('X-Data-Source', 'live-excel');
     res.json(await getLiveData(req.params.name));

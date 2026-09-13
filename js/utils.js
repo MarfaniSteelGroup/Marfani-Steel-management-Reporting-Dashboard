@@ -42,14 +42,15 @@ function badge(s){
 
 const DataStore = (() => {
   const cache = {};
+  const CACHE_TTL_MS = 5 * 60 * 1000;
   async function load(name){
-    if(cache[name]) return cache[name];
+    if(cache[name] && Date.now() - cache[name].loadedAt < CACHE_TTL_MS) return cache[name].data;
     try {
-      const live = await fetch(`/api/live-data/${name}`);
+      const live = await fetch(`/api/live-data/${name}?refresh=${Date.now()}`, { cache: 'no-store' });
       if(live.ok){
         const json = await live.json();
         window.dashboardDataSource = live.headers.get('x-data-source') || 'live-excel';
-        cache[name] = json;
+        cache[name] = { data: json, loadedAt: Date.now() };
         return json;
       }
       console.warn(`Live workbook request failed for ${name}; using saved report data.`);
@@ -60,7 +61,7 @@ const DataStore = (() => {
     if(!res.ok) throw new Error(`Failed to load ${name}`);
     const json = await res.json();
     window.dashboardDataSource = 'static-fallback';
-    cache[name] = json;
+    cache[name] = { data: json, loadedAt: Date.now() };
     return json;
   }
   return { load };
