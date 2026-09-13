@@ -108,6 +108,7 @@
         <h1 id="pageTitle">Overview</h1>
         <p id="pageSub">Consolidated management snapshot</p>
       </div>
+      <div class="welcome-user" id="welcomeUser" aria-live="polite">Welcome</div>
       <div class="topbar-stamp">
         <span class="stamp-label">REPORT AS ON</span>
         <span class="stamp-date" id="asOnDate">12&ndash;SEP&ndash;2026</span>
@@ -120,8 +121,8 @@
         <section class="admin-panel" id="adminPanel" hidden>
           <div class="admin-panel-heading">
             <div>
-              <strong>Admin control panel</strong>
-              <span>Management reporting access</span>
+              <strong>User control panel</strong>
+              <span>Manage people, login access, and report rights</span>
             </div>
             <span class="admin-status">ACTIVE</span>
           </div>
@@ -130,7 +131,8 @@
             <strong>Admin</strong>
           </div>
           <form class="user-create-form" id="userCreateForm">
-            <strong>Create read-only user</strong>
+            <strong>Create user access</strong>
+            <label>Full name <input id="newName" type="text" minlength="2" maxlength="80" autocomplete="off" required></label>
             <label>User ID <input id="newUsername" type="text" minlength="3" maxlength="32" required></label>
             <label>Password <input id="newPassword" type="password" minlength="8" required></label>
             <div class="rights-label">User rights</div>
@@ -180,11 +182,13 @@
     const adminTrigger = document.getElementById('adminTrigger');
     const adminPanel = document.getElementById('adminPanel');
     const userControlTab = document.getElementById('userControlTab');
-    const setRole = (role, username) => {
+    const welcomeUser = document.getElementById('welcomeUser');
+    const setRole = (role, username, displayName) => {
+      welcomeUser.textContent = `Welcome, ${displayName || username || 'User'}`;
       if (role === 'admin') {
         adminTrigger.hidden = false;
         userControlTab.hidden = false;
-        adminPanel.querySelector('.admin-session strong').textContent = username || 'Admin';
+        adminPanel.querySelector('.admin-session strong').textContent = displayName || username || 'Admin';
         return;
       }
       adminTrigger.hidden = true;
@@ -204,7 +208,7 @@
         const session = await response.json();
         body.classList.remove('auth-locked');
         gate.hidden = true;
-        setRole(session.role, session.username);
+        setRole(session.role, session.username, session.display_name);
       } catch (error) {
         body.classList.add('auth-locked');
         gate.hidden = false;
@@ -256,8 +260,8 @@
         renderActiveUsers(users);
       } catch (error) {
         renderActiveUsers([
-          { username: 'Admin', role: 'admin', permissions: ['entry', 'approval', 'user_creation'] },
-          { username: 'Viewer', role: 'viewer', permissions: [] }
+          { username: 'Admin', display_name: 'Marfani Administrator', role: 'admin', permissions: ['entry', 'approval', 'user_creation'] },
+          { username: 'Viewer', display_name: 'Reporting Viewer', role: 'viewer', permissions: [] }
         ]);
       }
     };
@@ -265,6 +269,7 @@
       event.preventDefault();
       const message = document.getElementById('userCreateMessage');
       const payload = {
+        name: document.getElementById('newName').value,
         username: document.getElementById('newUsername').value,
         password: document.getElementById('newPassword').value,
         entry: document.getElementById('entryRight').checked,
@@ -279,7 +284,7 @@
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Could not create user.');
-        message.textContent = `User ${result.username} created.`;
+        message.textContent = `${result.display_name} can now sign in with ${result.username}.`;
         message.className = 'user-create-message success';
         event.target.reset();
         await loadActiveUsers();
@@ -291,7 +296,8 @@
     const renderActiveUsers = (users) => {
       activeUsersList.innerHTML = users.map(user => `
           <div class="active-user" data-username="${esc(user.username)}">
-            <div class="active-user-name"><strong>${esc(user.username)}</strong><span>${esc(user.role)}</span></div>
+            <div class="active-user-name"><strong>${esc(user.display_name || user.username)}</strong><span>${esc(user.role)}</span></div>
+            <div class="active-user-id">Login ID: ${esc(user.username)}</div>
             <div class="active-user-rights">
               <label><input type="checkbox" data-right="entry" ${user.permissions.includes('entry') ? 'checked' : ''} ${user.role === 'admin' ? 'disabled' : ''}> Entry</label>
               <label><input type="checkbox" data-right="approval" ${user.permissions.includes('approval') ? 'checked' : ''} ${user.role === 'admin' ? 'disabled' : ''}> Approval</label>

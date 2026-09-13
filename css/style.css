@@ -188,6 +188,15 @@ svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; 
   font-size: 12.5px;
   color: var(--ink-2);
 }
+.welcome-user{
+  max-width: 220px;
+  color: var(--amber);
+  font: 600 11px var(--font-mono);
+  letter-spacing: .2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .topbar-stamp{
   display:flex;
@@ -222,7 +231,7 @@ svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; 
 .admin-trigger svg{ width:16px; height:16px; }
 .admin-panel{
   position:absolute; right:0; top:calc(100% + 10px); z-index:10;
-  width:270px; padding:15px; border:1px solid var(--line);
+  width:350px; padding:18px; border:1px solid var(--line);
   border-radius:var(--radius-m); background:var(--hull-1);
   box-shadow:0 16px 35px rgba(0,0,0,.32);
 }
@@ -251,6 +260,7 @@ svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; 
 .active-user{ padding:8px; border:1px solid var(--line-soft); border-radius:var(--radius-s); background:var(--hull-0); }
 .active-user-name{ display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--ink-0); font-size:11px; }
 .active-user-name span{ color:var(--green); font:9px var(--font-mono); text-transform:uppercase; }
+.active-user-id{ margin-top:4px; color:var(--ink-3); font:9px var(--font-mono); }
 .active-user-rights{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
 .active-user-rights label{ display:flex; align-items:center; gap:4px; color:var(--ink-2); font-size:10px; }
 .active-user-rights input{ accent-color:var(--amber); }
@@ -458,7 +468,8 @@ table.data .wrap{ white-space:normal; min-width:220px; }
   .topbar{ padding: 16px 16px; }
   .grid-4, .grid-3, .grid-2{ grid-template-columns: 1fr; }
   .topbar-stamp{ display:none; }
+  .welcome-user{ max-width: 140px; }
   .admin-trigger span{ display:none; }
   .admin-trigger{ padding:8px; }
-  .admin-panel{ right:-4px; }
+  .admin-panel{ right:-4px; width:min(350px, calc(100vw - 32px)); }
 }

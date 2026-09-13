@@ -74,37 +74,39 @@ async function initializeUserStore() {
     CREATE TABLE IF NOT EXISTS app_users (
       username VARCHAR(32) PRIMARY KEY,
       password TEXT NOT NULL,
+      display_name VARCHAR(80) NOT NULL DEFAULT '',
       role VARCHAR(20) NOT NULL,
       permissions JSONB NOT NULL DEFAULT '[]'::jsonb
     )
   `);
+  await pool.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS display_name VARCHAR(80) NOT NULL DEFAULT ''`);
   for (const [username, account] of Object.entries(USERS)) {
     await pool.query(`
-      INSERT INTO app_users (username, password, role, permissions)
-      VALUES ($1, $2, $3, $4::jsonb)
+      INSERT INTO app_users (username, password, display_name, role, permissions)
+      VALUES ($1, $2, $3, $4, $5::jsonb)
       ON CONFLICT (username) DO NOTHING
-    `, [username, account.password, account.role, JSON.stringify(account.permissions || [])]);
+    `, [username, account.password, account.display_name || username, account.role, JSON.stringify(account.permissions || [])]);
   }
-  const result = await pool.query('SELECT username, password, role, permissions FROM app_users');
+  const result = await pool.query('SELECT username, password, display_name, role, permissions FROM app_users');
   Object.keys(USERS).forEach(username => delete USERS[username]);
-  result.rows.forEach(account => { USERS[account.username] = account; });
+  result.rows.forEach(account => { USERS[account.username] = { ...account, display_name: account.display_name || account.username }; });
 }
 
 async function saveUser(account) {
   if (pool) {
     await pool.query(`
-      INSERT INTO app_users (username, password, role, permissions)
-      VALUES ($1, $2, $3, $4::jsonb)
-      ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, role = EXCLUDED.role, permissions = EXCLUDED.permissions
-    `, [account.username, account.password, account.role, JSON.stringify(account.permissions || [])]);
+      INSERT INTO app_users (username, password, display_name, role, permissions)
+      VALUES ($1, $2, $3, $4, $5::jsonb)
+      ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, display_name = EXCLUDED.display_name, role = EXCLUDED.role, permissions = EXCLUDED.permissions
+    `, [account.username, account.password, account.display_name || account.username, account.role, JSON.stringify(account.permissions || [])]);
     return;
   }
   fs.writeFileSync(path.join(__dirname, 'data', 'users.json'), `${JSON.stringify(USERS, null, 2)}\n`);
 }
 
 async function listUsers() {
-  if (!pool) return Object.entries(USERS).map(([username, account]) => ({ username, role: account.role, permissions: account.permissions || [] }));
-  const result = await pool.query('SELECT username, role, permissions FROM app_users ORDER BY username');
+  if (!pool) return Object.entries(USERS).map(([username, account]) => ({ username, display_name: account.display_name || username, role: account.role, permissions: account.permissions || [] }));
+  const result = await pool.query('SELECT username, display_name, role, permissions FROM app_users ORDER BY display_name, username');
   return result.rows;
 }
 
@@ -485,7 +487,7 @@ function getSessionUser(req) {
     const [username, password] = decoded.split(':');
     const account = USERS[username];
     if (!account || account.password !== password) return null;
-    return { username, role: account.role, permissions: account.permissions || [] };
+    return { username, display_name: account.display_name || username, role: account.role, permissions: account.permissions || [] };
   } catch (error) {
     return null;
   }
@@ -500,7 +502,7 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body || {};
   let account = USERS[username];
   if (pool) {
-    const result = await pool.query('SELECT username, password, role, permissions FROM app_users WHERE username = $1', [username]);
+    const result = await pool.query('SELECT username, password, display_name, role, permissions FROM app_users WHERE username = $1', [username]);
     account = result.rows[0];
   }
   if (account && account.password === password) {
@@ -526,7 +528,7 @@ app.use((req, res, next) => {
 app.get('/api/session', (req, res) => {
   const user = getSessionUser(req);
   if (!user) return res.status(401).json({ authenticated: false });
-  res.json({ authenticated: true, username: user.username, role: user.role, permissions: user.permissions });
+  res.json({ authenticated: true, username: user.username, display_name: user.display_name, role: user.role, permissions: user.permissions });
 });
 
 app.get('/api/live-data/:name', async (req, res) => {
@@ -575,10 +577,11 @@ app.post('/api/users', async (req, res) => {
   const session = getSessionUser(req);
   if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
 
-  const { username, password, entry, approval } = req.body || {};
+  const { name, username, password, entry, approval } = req.body || {};
+  const cleanName = String(name || '').trim();
   const cleanUsername = String(username || '').trim();
-  if (!/^[A-Za-z0-9_-]{3,32}$/.test(cleanUsername) || String(password || '').length < 8) {
-    return res.status(400).json({ error: 'Use a username of 3-32 letters/numbers and a password of at least 8 characters.' });
+  if (cleanName.length < 2 || cleanName.length > 80 || !/^[A-Za-z0-9_-]{3,32}$/.test(cleanUsername) || String(password || '').length < 8) {
+    return res.status(400).json({ error: 'Enter a name, a login ID of 3-32 letters/numbers, and a password of at least 8 characters.' });
   }
   if (USERS[cleanUsername] || (pool && (await pool.query('SELECT 1 FROM app_users WHERE username = $1', [cleanUsername])).rowCount)) {
     return res.status(409).json({ error: 'That user already exists.' });
@@ -586,13 +589,14 @@ app.post('/api/users', async (req, res) => {
 
   const account = {
     username: cleanUsername,
+    display_name: cleanName,
     password: String(password),
     role: 'viewer',
     permissions: [entry ? 'entry' : '', approval ? 'approval' : ''].filter(Boolean)
   };
   USERS[cleanUsername] = account;
   await saveUser(account);
-  res.status(201).json({ username: cleanUsername, role: 'viewer', permissions: account.permissions });
+  res.status(201).json({ username: cleanUsername, display_name: cleanName, role: 'viewer', permissions: account.permissions });
 });
 
 app.get('/download/container-cst', async (req, res) => {
