@@ -10,7 +10,7 @@ services:
       - key: NODE_VERSION
         value: 18.20.0
       - key: LIVE_WORKBOOK_URL
-        value: https://marfanisteelpvtltd-my.sharepoint.com/:x:/g/personal/dms-msgroup_marfanisteel_com/IQAkxFhUOv2wQIdzGqC5p7__AbGgQ5ZzHygvbIro73t1xSA?download=1
+        value: https://marfanisteelpvtltd-my.sharepoint.com/:x:/g/personal/dms-msgroup_marfanisteel_com/IQAkxFhUOv2wQIdzGqC5p7__AdUOyL2WEfeYENY4RJNv6lI?e=kNM4pO
       - key: DATABASE_URL
         fromDatabase:
           name: marfani-users-db
