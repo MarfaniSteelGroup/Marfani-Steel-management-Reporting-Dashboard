@@ -12,6 +12,26 @@ const pageSub = document.getElementById('pageSub');
 const dock = document.getElementById('dock');
 const burger = document.getElementById('burger');
 
+function updateLiveReportStamp(){
+  const stamp = document.getElementById('asOnDate');
+  if (!stamp) return;
+
+  const now = new Date();
+  const date = now.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).toUpperCase().replace(/\//g, '-');
+  const time = now.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  stamp.textContent = `LIVE ${date.replace(/ /g, '-') } ${time}`;
+}
+
 async function navigate(route){
   if(!ROUTES[route]) route = 'overview';
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.route === route));
@@ -36,6 +56,9 @@ document.getElementById('dockNav').addEventListener('click', (e) => {
 });
 
 burger.addEventListener('click', () => dock.classList.toggle('open'));
+
+updateLiveReportStamp();
+setInterval(updateLiveReportStamp, 1000);
 
 chartDefaults();
 
