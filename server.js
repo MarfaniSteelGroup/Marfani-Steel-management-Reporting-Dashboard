@@ -218,19 +218,39 @@ function pickValue(row, aliases) {
   return undefined;
 }
 
+function findWorkbookSheet(workbook, candidates) {
+  const normalizedNames = workbook.SheetNames.map((name) => String(name).trim());
+  const match = candidates.find((candidate) => normalizedNames.some((name) => name.toLowerCase() === candidate.toLowerCase() || name.toLowerCase().includes(candidate.toLowerCase().replace(/[^a-z0-9]/g, ''))));
+  if (match) return match;
+
+  const sheetKey = candidates.map((candidate) => String(candidate).toLowerCase().replace(/[^a-z0-9]/g, ''));
+  for (const name of normalizedNames) {
+    const compact = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (sheetKey.some((key) => compact.includes(key))) return name;
+  }
+
+  return workbook.SheetNames[0] || null;
+}
+
 function liveFundPlanning(buffer) {
-  const sourceRows = liveRows(buffer, 'Fund Planning Report', 2);
-  const rateColumnValues = liveColumnValues(buffer, 'Fund Planning Report', 2, 17);
+  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  const sheetName = findWorkbookSheet(workbook, ['Fund Planning Report', 'Fund Planning', 'Compele Data Sheet', 'Complete Data Sheet', 'Complete Data']);
+  if (!sheetName) {
+    throw new Error('No supported workbook sheet was found for fund planning data.');
+  }
+
+  const sourceRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { range: 2, defval: '' });
+  const sampleHeader = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { range: 2, header: 1, defval: '' })[0] || [];
 
   const rows = sourceRows.map((row, index) => {
-    const qtyValue = pickValue(row, ['Qty In KGS', 'Qty (KGS)', 'Qty in KGS', 'Qty (KGS) ', 'Qty In Kgs']);
-    const amountToBePaidUsd = numberValue(pickValue(row, ['AMOUNT TO BE PAID IN USD', 'Amount to be Paid (USD)', 'Amount To Be Paid In USD', 'Amount to be Paid in USD', 'Amount To Be Paid In US$']));
+    const qtyValue = pickValue(row, ['Total BL Qty.\r\nIn KGS', 'Total BL Qty. In KGS', 'Total BL Qty. in KGS', 'Qty in KGS', 'Qty In KGS', 'Qty (KGS)', 'Qty (KGS) ', 'Qty In Kgs']) || pickValue(row, ['(as per SO) QTY\r\nIN MT', '(as per SO) QTY\nIN MT', '(as per SO) QTY IN MT', 'QTY IN MT']);
+    const amountToBePaidUsd = numberValue(pickValue(row, ['AMOUNT TO BE PAID IN USD', 'Amount to be Paid (USD)', 'Amount To Be Paid In USD', 'Amount to be Paid in USD', 'Amount To Be Paid In US$', 'Final Amount Paid in USD']));
     const rateValue = numberValue(
       pickValue(row, [
         'Rate per MTS (in USD)', 'Rate per MTS (USD)', 'Rate per MTS in USD', 'Rate Per MTS', 'Rate / MTS',
         'Rate as per SO in USD', 'Rate as per SO (USD)', 'Rate As Per SO (USD)', 'Rate per SO in USD',
-        'Rate as per SO in us$', 'Rate as per SO us$', 'Rate per SO', 'Rate in USD', 'Rate USD'
-      ]) ?? rateColumnValues[index] ?? pickValue(row, ['rate as per so in usd', 'rate as per so usd', 'rate as per so (usd)', 'rate as per so in us$', 'rate per so in usd', 'rate per so usd', 'rate in usd', 'rate usd'])
+        'Rate as per SO in us$', 'Rate as per SO us$', 'Rate per SO', 'Rate in USD', 'Rate USD', '(as per SO) Rate'
+      ]) ?? pickValue(row, ['rate as per so in usd', 'rate as per so usd', 'rate as per so (usd)', 'rate as per so in us$', 'rate per so in usd', 'rate per so usd', 'rate in usd', 'rate usd']) ?? (sampleHeader[17] && row[sampleHeader[17]])
     );
 
     const advanceValue = pickValue(row, [
@@ -238,41 +258,45 @@ function liveFundPlanning(buffer) {
       'Advance amount paid usd', 'Advance amount paid in usd', 'Advance paid', 'Advance paid (USD)',
       'Advance Paid USD', 'Advance Amount', 'Advance Amt Paid'
     ]);
-    const advanceAmountPaidUsd = advanceValue !== undefined ? numberValue(advanceValue) : (String(qtyValue || '').toLowerCase().startsWith('advance') ? amountToBePaidUsd : 0);
+    const advanceAmountPaidUsd = advanceValue !== undefined ? numberValue(advanceValue) : 0;
 
-    const partyName = pickValue(row, ['Party Name', 'Party', 'Party Name ', 'Part Name']);
-    const composition = pickValue(row, ['Composition/Grade', 'Composition / Grade', 'Composition', 'Composition Grade', 'Grade']);
+    const partyName = pickValue(row, ['Seller Name', 'Seller Name \r\n(Short)', 'Party Name', 'Party', 'Party Name ', 'Part Name']);
+    const composition = pickValue(row, ['Pruduct Name As per SO', 'Composition/Grade', 'Composition / Grade', 'Composition', 'Composition Grade', 'Grade', 'Product Name As per SO']);
     const entity = pickValue(row, ['Intity Name', 'Entity', 'Entity Name', 'Intity Name ']);
-    const containerEta = pickValue(row, ['Cont. ETA Date', 'Container ETA', 'Cont ETA Date', 'ETA Date', 'ETA']);
-    const freeTill = pickValue(row, ['Free Till', 'Free Till Date', 'Free Till ', 'Free Till Date ']);
-    const chaName = pickValue(row, ['CHA Name', 'CHA', 'Cha Name']);
-    const remarks = pickValue(row, ['Remarks2', 'Remarks 2', 'Remark 2', 'Remarks', 'Remark']);
-    const hss = pickValue(row, ['HSS', 'HSS Status', 'HSS Value', 'Hss']);
-    const sims = pickValue(row, ['SIMS', 'Sims', 'SIMS Status']);
-    const payment = pickValue(row, ['Payment', 'Payment Status', 'Payment BO']);
-    const bo = pickValue(row, ['BO', 'BO Status']);
+    const containerEta = pickValue(row, ['ETA', 'Container ETA', 'Cont ETA Date', 'ETA Date', 'Cont. ETA Date']);
+    const freeTill = pickValue(row, ['Free Till Date', 'Free Till', 'Free Till ', 'Free Till Date ']);
+    const chaName = pickValue(row, ['CHA Name', 'CHA Name\r\n(Short)', 'CHA Name (Short)', 'CHA', 'Cha Name']);
+    const remarks = pickValue(row, ['Remarks', 'Remark', 'Remarks2', 'Remarks 2', 'Remark 2', 'DN Remarks']);
+    const hss = pickValue(row, ['HSS', 'HSS Status', 'HSS Value', 'Hss', 'HSS Agmt']);
+    const sims = pickValue(row, ['SIMS', 'Sims', 'SIMS Status', 'SIMS Amount']);
+    const payment = pickValue(row, ['Payment', 'Payment Status', 'Payment BO', 'DO Payment Status', 'DO Payment']);
+    const bo = pickValue(row, ['BOE No.', 'BOE', 'BOE No', 'BO', 'BO Status']);
     const currentDocument = pickValue(row, ['Current Document', 'Current Doc', 'Current Document status', 'Current Document Status']);
     const doPaymentStatus = pickValue(row, ['DO Payment Status', 'DO Payment', 'Payment DO', 'DO Payment status']);
+
+    const dutyApproxInr = numberValue(pickValue(row, ['DUTY AMOUNT', 'DUTY AMT APPROX in INR', 'Duty Approx. (INR)', 'Duty Approximation in INR', 'DUTY AMT APPROX', 'Duty Amt Approx INR', 'Duty Amount Approx IN INR']));
+    const payableInr = numberValue(pickValue(row, ['Amount Payable (INR)', 'Amount payable in INR', 'Amount payable in INR (approx)', 'Amount Payable in INR', 'Amount payable approx in INR', 'Final Amount Paid in INR', 'Total BOE Amount']));
+    const totalRequired = numberValue(pickValue(row, ['Total Amount Required (INR)', 'Total Amount required\n(In INR)', 'Total Amount required (In INR)', 'Total Amount (INR Approx.)', 'Total Amount required in INR', 'Total Amount required', 'Total BOE Amount', 'Total BOE Taxable Value']));
 
     return {
       sn: pickValue(row, ['S. N.', 'S.No.', 'S No.', 'SN']) || index + 1,
       bl_no: pickValue(row, ['Last 6 Digit BL No.', 'Last 6 Digit BL No', 'Last 6 Digit BL. No.', 'BL No.', 'Last 6 Digit BL No. ']) || pickValue(row, ['BL Number', 'BL No']),
       order_status: pickValue(row, ['Order Status', 'Status', 'Order status']),
-      so_no: pickValue(row, ['SO No.', 'Sales Order No.', 'SO No', 'SO Number', 'Sales Order No. ', 'SO no']),
+      so_no: pickValue(row, ['SO  No.', 'SO No.', 'Sales Order No.', 'SO No', 'SO Number', 'Sales Order No. ', 'SO no']),
       party_name: partyName,
       composition,
       entity,
       rate_as_per_so_usd: rateValue,
-      no_of_cont: numberValue(pickValue(row, ['No. of Cont.', 'No of Cont.', 'No. of Cont', 'No of Cont', 'No.of Cont', 'No of Containers', 'No of Container'])),
+      no_of_cont: numberValue(pickValue(row, ['Nos of Container', 'No. of Cont.', 'No of Cont.', 'No. of Cont', 'No of Cont', 'No.of Cont', 'No of Containers', 'No of Container'])),
       container_eta: containerEta,
       free_till: freeTill,
       cha_name: chaName,
       qty_kgs: numberValue(qtyValue),
-      duty_approx_inr: numberValue(pickValue(row, ['DUTY AMT APPROX in INR', 'Duty Approx. (INR)', 'Duty Approximation in INR', 'DUTY AMT APPROX', 'Duty Amt Approx INR', 'Duty Amount Approx IN INR'])),
+      duty_approx_inr: dutyApproxInr,
       amount_usd: amountToBePaidUsd,
       advance_amount_paid_usd: advanceAmountPaidUsd,
-      amount_payable_inr: numberValue(pickValue(row, ['Amount payable in RS (APPROX)', 'Amount Payable (INR)', 'Amount payable in INR', 'Amount payable in INR (approx)', 'Amount Payable in INR', 'Amount payable approx in INR'])),
-      total_required_inr: numberValue(pickValue(row, ['Total Amount required\n(In INR)', 'Total Amount required (In INR)', 'Total Amount (INR Approx.)', 'Total Amount Required (INR)', 'Total Amount required in INR', 'Total Amount required'])),
+      amount_payable_inr: payableInr,
+      total_required_inr: totalRequired,
       hss,
       sims,
       payment,
@@ -290,12 +314,12 @@ function liveFundPlanning(buffer) {
     asOn: new Date().toISOString().slice(0, 10),
     rows,
     totals: rows.reduce((totals, row) => ({
-      duty_approx_inr: totals.duty_approx_inr + row.duty_approx_inr,
-      amount_usd: totals.amount_usd + row.amount_usd,
-      rate_as_per_so_usd: totals.rate_as_per_so_usd + row.rate_as_per_so_usd,
+      duty_approx_inr: totals.duty_approx_inr + (row.duty_approx_inr || 0),
+      amount_usd: totals.amount_usd + (row.amount_usd || 0),
+      rate_as_per_so_usd: totals.rate_as_per_so_usd + (row.rate_as_per_so_usd || 0),
       advance_amount_paid_usd: totals.advance_amount_paid_usd + (row.advance_amount_paid_usd || 0),
-      amount_payable_inr: totals.amount_payable_inr + row.amount_payable_inr,
-      total_required_inr: totals.total_required_inr + row.total_required_inr
+      amount_payable_inr: totals.amount_payable_inr + (row.amount_payable_inr || 0),
+      total_required_inr: totals.total_required_inr + (row.total_required_inr || 0)
     }), { duty_approx_inr: 0, amount_usd: 0, rate_as_per_so_usd: 0, advance_amount_paid_usd: 0, amount_payable_inr: 0, total_required_inr: 0 })
   };
 }
@@ -684,9 +708,23 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-initializeUserStore().then(() => app.listen(PORT, () => {
-  console.log(`Marfani Steel Group Reporting Deck running on port ${PORT}`);
-})).catch(error => {
-  console.error('User store initialization failed:', error);
-  process.exit(1);
-});
+module.exports = {
+  app,
+  downloadWorkbook,
+  getLiveData,
+  liveFundPlanning,
+  liveDailyFundOutflow,
+  liveOneView,
+  liveShipmentCosting,
+  liveOverview,
+  buildLoginPage
+};
+
+if (require.main === module) {
+  initializeUserStore().then(() => app.listen(PORT, () => {
+    console.log(`Marfani Steel Group Reporting Deck running on port ${PORT}`);
+  })).catch(error => {
+    console.error('User store initialization failed:', error);
+    process.exit(1);
+  });
+}
