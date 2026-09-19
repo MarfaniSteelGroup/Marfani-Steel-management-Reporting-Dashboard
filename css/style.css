@@ -452,6 +452,50 @@ table.data .wrap{ white-space:normal; min-width:220px; }
 
 .empty-state{ padding: 30px; text-align:center; color: var(--ink-3); font-family: var(--font-mono); font-size:12.5px; }
 
+.fp-actions{
+  display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; margin-left:auto;
+}
+
+.fp-btn{
+  border:1px solid var(--line);
+  background: var(--hull-2);
+  color: var(--ink-0);
+  border-radius: var(--radius-s);
+  padding: 7px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor:pointer;
+}
+.fp-btn:hover{ border-color: var(--amber); color: var(--amber); }
+
+.fp-print-area{ min-width: 100%; }
+
+@media print {
+  @page { size: A3 landscape; margin: 8mm; }
+  .dock, .topbar, .admin-tools, .controls, .fp-actions, .kpi, .panel-note, .panel-title, .empty-state { display:none !important; }
+  body, html { background:#fff !important; }
+  .stage { padding:0 !important; max-width:none !important; }
+  .panel.fp-print-area {
+    margin:0 !important; padding:0 !important; border:none !important; background:#fff !important; box-shadow:none !important;
+  }
+  .fp-print-area, .fp-print-area * { visibility: visible !important; }
+  .fp-print-area {
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+  table.data {
+    width:100% !important; min-width:0 !important; font-size: 9px !important; color:#111 !important;
+  }
+  table.data thead th,
+  table.data tbody td {
+    color:#111 !important; background:#fff !important; border-color:#111 !important; white-space: normal !important; padding: 4px 5px !important;
+  }
+  .table-wrap { border:none !important; overflow:visible !important; }
+ }
+
 /* ---------------- responsive ---------------- */
 
 @media (max-width: 1080px){

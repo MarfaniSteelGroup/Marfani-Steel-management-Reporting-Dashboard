@@ -223,8 +223,13 @@ Views.fundPlanning = async function(stage){
           <button class="pill" data-v="Active">Active</button>
           <button class="pill" data-v="Closed">Closed</button>
         </div>
+        <div class="fp-actions">
+          <button class="fp-btn" type="button" data-fp-export="print">Print A3</button>
+          <button class="fp-btn" type="button" data-fp-export="pdf">Download PDF</button>
+          <button class="fp-btn" type="button" data-fp-export="xlsx">Download XLSX</button>
+        </div>
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap fp-print-area">
         <table class="data">
           <thead><tr>
             <th>S.N.</th>
@@ -294,7 +299,7 @@ Views.fundPlanning = async function(stage){
         <td>${esc(r.hss)}</td>
         <td>${esc(r.sims)}</td>
         <td>${esc(r.payment)}</td>
-        <td>${esc(r.bo)}</td>
+        <td>${esc(r.bo || r.boe)}</td>
         <td>${esc(r.current_document)}</td>
         <td>${esc(r.do_payment_status)}</td>
         <td>${esc(r.so_no)}</td>
@@ -302,6 +307,80 @@ Views.fundPlanning = async function(stage){
     `;
     }).join('');
   }
+
+  function exportPrintableTable(mode) {
+    const table = document.querySelector('.fp-print-area table');
+    if (!table) return;
+
+    const pageTitle = document.querySelector('#pageTitle')?.textContent || 'Fund Planning';
+    const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17];
+    const clonedTable = table.cloneNode(true);
+
+    const headerCells = Array.from(clonedTable.querySelectorAll('thead tr th'));
+    headerCells.forEach((cell, index) => {
+      if (!visibleColumns.includes(index)) {
+        cell.remove();
+      } else {
+        cell.style.fontSize = '11px';
+        cell.style.padding = '6px';
+      }
+    });
+
+    const bodyRows = Array.from(clonedTable.querySelectorAll('tbody tr'));
+    bodyRows.forEach(row => {
+      Array.from(row.children).forEach((cell, index) => {
+        if (!visibleColumns.includes(index)) {
+          cell.remove();
+        } else {
+          cell.style.fontSize = '11px';
+          cell.style.padding = '6px';
+        }
+      });
+    });
+
+    if (mode === 'print') {
+      const wrapper = document.createElement('div');
+      wrapper.style.width = '100%';
+      wrapper.style.padding = '18px';
+      wrapper.style.background = '#fff';
+      wrapper.style.color = '#111';
+      wrapper.appendChild(clonedTable);
+      const old = document.body.innerHTML;
+      document.body.innerHTML = '<div style="padding:24px;background:#fff;">' + wrapper.innerHTML + '</div>';
+      window.print();
+      document.body.innerHTML = old;
+      location.reload();
+      return;
+    }
+
+    if (mode === 'pdf') {
+      const printWindow = window.open('', '_blank', 'width=1200,height=900');
+      if (!printWindow) return alert('Popup blocked. Please allow pop-ups to print as PDF.');
+      printWindow.document.write('<html><head><title>' + pageTitle + '</title><style>@page{size:A3 landscape;margin:8mm;} body{font-family:Arial,sans-serif;background:#fff;color:#111;padding:18px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #111;padding:6px; text-align:left; font-size:11px;} th{background:#f3f3f3;}</style></head><body>' + clonedTable.outerHTML + '</body></html>');
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 500);
+      return;
+    }
+
+    if (mode === 'xlsx') {
+      if (!(window.XLSX && typeof window.XLSX.utils !== 'undefined')) {
+        return alert('Excel export library is not available.');
+      }
+      const rows = Array.from(clonedTable.querySelectorAll('tr')).map(tr => Array.from(tr.children).map(td => td.textContent.trim()));
+      const sheet = window.XLSX.utils.aoa_to_sheet(rows);
+      const workbook = window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(workbook, sheet, 'Fund Planning');
+      window.XLSX.writeFile(workbook, 'fund_planning_report.xlsx');
+    }
+  }
+
+  document.querySelectorAll('[data-fp-export]').forEach(button => {
+    button.addEventListener('click', () => {
+      const action = button.dataset.fpExport;
+      exportPrintableTable(action);
+    });
+  });
 
   function applyFilters(){
     filtered = d.rows.filter(r => {
