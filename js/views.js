@@ -228,23 +228,29 @@ Views.fundPlanning = async function(stage){
         <table class="data">
           <thead><tr>
             <th>S.N.</th>
-            <th>BL No.</th>
+            <th>Last 6 Digit BL No.</th>
             <th>Order Status</th>
-            <th>SO No.</th>
             <th>Party Name</th>
-            <th class="num">(as per SO) Rate (USD)</th>
             <th>Composition / Grade</th>
             <th>Entity</th>
             <th>No. of Cont.</th>
             <th>Container ETA</th>
             <th>Free Till</th>
             <th>CHA Name</th>
-            <th class="num">Qty (KGS)</th>
+            <th class="num">Qty in KGS</th>
+            <th class="num">Rate / MTS (USD)</th>
             <th class="num">Duty Approx. (INR)</th>
-            <th class="num">Advance Amount Paid (USD)</th>
+            <th class="num">Advance Paid (USD)</th>
             <th class="num">Amount to be Paid (USD)</th>
             <th class="num">Amount Payable (INR)</th>
-            <th class="num">Total Amount (INR Approx.)</th>
+            <th class="num">Total Amount Required (INR)</th>
+            <th>HSS</th>
+            <th>SIMS</th>
+            <th>Payment</th>
+            <th>BO</th>
+            <th>Current Document</th>
+            <th>DO Payment Status</th>
+            <th>SO No.</th>
             <th>Remarks</th>
           </tr></thead>
           <tbody id="fpBody"></tbody>
@@ -264,15 +270,13 @@ Views.fundPlanning = async function(stage){
     }
     empty.style.display = 'none';
     body.innerHTML = filtered.slice(0, 500).map(r => {
-      const rateAsPerSoUsd = Number(r.rate_as_per_so_usd);
+      const rateAsPerSoUsd = Number(r.rate_as_per_so_usd ?? r.rate_per_mts_usd ?? 0);
       return `
       <tr>
         <td>${esc(r.sn)}</td>
         <td>${esc(r.bl_no)}</td>
         <td>${badge(r.order_status)}</td>
-        <td>${esc(r.so_no)}</td>
         <td class="wrap">${esc(r.party_name)}</td>
-        <td class="num">${fmt.usd(rateAsPerSoUsd)}</td>
         <td class="wrap">${esc(r.composition)}</td>
         <td>${esc(r.entity)}</td>
         <td class="num">${typeof r.no_of_cont === 'number' ? fmt.num(r.no_of_cont) : esc(r.no_of_cont)}</td>
@@ -280,11 +284,19 @@ Views.fundPlanning = async function(stage){
         <td>${esc(r.free_till)}</td>
         <td>${esc(r.cha_name)}</td>
         <td class="num">${typeof r.qty_kgs === 'number' ? fmt.num(r.qty_kgs) : esc(r.qty_kgs)}</td>
+        <td class="num">${fmt.usd(rateAsPerSoUsd)}</td>
         <td class="num">${fmt.inr(r.duty_approx_inr)}</td>
         <td class="num">${fmt.usd(r.advance_amount_paid_usd)}</td>
         <td class="num">${fmt.usd(r.amount_usd)}</td>
         <td class="num">${fmt.inr(r.amount_payable_inr)}</td>
         <td class="num">${fmt.inr(r.total_required_inr)}</td>
+        <td>${esc(r.hss)}</td>
+        <td>${esc(r.sims)}</td>
+        <td>${esc(r.payment)}</td>
+        <td>${esc(r.bo)}</td>
+        <td>${esc(r.current_document)}</td>
+        <td>${esc(r.do_payment_status)}</td>
+        <td>${esc(r.so_no)}</td>
         <td class="wrap">${esc(r.remarks)}</td>
       </tr>
     `;

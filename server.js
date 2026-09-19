@@ -191,71 +191,93 @@ function liveColumnValues(buffer, sheetName, headerRow, columnIndex) {
   return rows.slice(1).map(row => row[columnIndex]);
 }
 
+function pickValue(row, aliases) {
+  const normalized = Object.entries(row).reduce((map, [key, value]) => {
+    map[String(key).trim().toLowerCase().replace(/[^a-z0-9]+/g, '')] = value;
+    return map;
+  }, {});
+
+  for (const alias of aliases) {
+    const direct = row[alias];
+    if (direct !== undefined && direct !== null && direct !== '') return direct;
+
+    const compactAlias = String(alias).trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+    if (normalized[compactAlias] !== undefined && normalized[compactAlias] !== null && normalized[compactAlias] !== '') {
+      return normalized[compactAlias];
+    }
+  }
+
+  return undefined;
+}
+
 function liveFundPlanning(buffer) {
   const sourceRows = liveRows(buffer, 'Fund Planning Report', 2);
   const rateColumnValues = liveColumnValues(buffer, 'Fund Planning Report', 2, 17);
+
   const rows = sourceRows.map((row, index) => {
-    const qtyValue = row['Qty In KGS'] || row['Qty (KGS)'] || row['Qty in KGS'];
-    const amountToBePaidUsd = numberValue(row['AMOUNT TO BE PAID IN USD'] || row['Amount to be Paid (USD)'] || row['Amount To Be Paid In USD']);
-    const normalizedHeaders = Object.keys(row).reduce((headers, header) => {
-      headers[String(header).trim().toLowerCase().replace(/\s+/g, ' ')] = row[header];
-      return headers;
-    }, {});
-    const compactHeaders = Object.keys(row).reduce((headers, header) => {
-      headers[String(header).toLowerCase().replace(/[^a-z0-9]+/g, '')] = row[header];
-      return headers;
-    }, {});
-    const explicitRateValue = [
-      'rate as per so in usd',
-      'rate as per so usd',
-      'rate as per so (usd)',
-      'rate as per so in us$',
-      'rate per so in usd',
-      'rate per so usd',
-      'rate in usd',
-      'rate usd',
-      'rate as per so ($)',
-      'rate as per so us$'
-    ].map(header => normalizedHeaders[header]).find(value => value !== undefined && value !== '');
-    const flexibleRateValue = Object.entries(compactHeaders)
-      .find(([header, value]) => header.includes('rate') && header.includes('so') && value !== undefined && value !== '')?.[1];
-    const advanceValue = [
-      'advance amount paid',
-      'advance amount paid (usd)',
-      'advance amount paid usd',
-      'advance amount paid in usd',
-      'advance paid',
-      'advance paid (usd)',
-      'advance paid usd',
-      'advance amount',
-      'advance amt paid'
-    ].map(header => normalizedHeaders[header]).find(value => value !== undefined && value !== '');
-    const advanceAmountPaidUsd = advanceValue !== undefined
-      ? numberValue(advanceValue)
-      : (String(qtyValue || '').toLowerCase().startsWith('advance') ? amountToBePaidUsd : 0);
+    const qtyValue = pickValue(row, ['Qty In KGS', 'Qty (KGS)', 'Qty in KGS', 'Qty (KGS) ', 'Qty In Kgs']);
+    const amountToBePaidUsd = numberValue(pickValue(row, ['AMOUNT TO BE PAID IN USD', 'Amount to be Paid (USD)', 'Amount To Be Paid In USD', 'Amount to be Paid in USD', 'Amount To Be Paid In US$']));
+    const rateValue = numberValue(
+      pickValue(row, [
+        'Rate per MTS (in USD)', 'Rate per MTS (USD)', 'Rate per MTS in USD', 'Rate Per MTS', 'Rate / MTS',
+        'Rate as per SO in USD', 'Rate as per SO (USD)', 'Rate As Per SO (USD)', 'Rate per SO in USD',
+        'Rate as per SO in us$', 'Rate as per SO us$', 'Rate per SO', 'Rate in USD', 'Rate USD'
+      ]) ?? rateColumnValues[index] ?? pickValue(row, ['rate as per so in usd', 'rate as per so usd', 'rate as per so (usd)', 'rate as per so in us$', 'rate per so in usd', 'rate per so usd', 'rate in usd', 'rate usd'])
+    );
+
+    const advanceValue = pickValue(row, [
+      'Advance Amount Paid (USD)', 'Advance Amount Paid', 'Advance amount paid', 'Advance amount paid (USD)',
+      'Advance amount paid usd', 'Advance amount paid in usd', 'Advance paid', 'Advance paid (USD)',
+      'Advance Paid USD', 'Advance Amount', 'Advance Amt Paid'
+    ]);
+    const advanceAmountPaidUsd = advanceValue !== undefined ? numberValue(advanceValue) : (String(qtyValue || '').toLowerCase().startsWith('advance') ? amountToBePaidUsd : 0);
+
+    const partyName = pickValue(row, ['Party Name', 'Party', 'Party Name ', 'Part Name']);
+    const composition = pickValue(row, ['Composition/Grade', 'Composition / Grade', 'Composition', 'Composition Grade', 'Grade']);
+    const entity = pickValue(row, ['Intity Name', 'Entity', 'Entity Name', 'Intity Name ']);
+    const containerEta = pickValue(row, ['Cont. ETA Date', 'Container ETA', 'Cont ETA Date', 'ETA Date', 'ETA']);
+    const freeTill = pickValue(row, ['Free Till', 'Free Till Date', 'Free Till ', 'Free Till Date ']);
+    const chaName = pickValue(row, ['CHA Name', 'CHA', 'Cha Name']);
+    const remarks = pickValue(row, ['Remarks2', 'Remarks 2', 'Remark 2', 'Remarks', 'Remark']);
+    const hss = pickValue(row, ['HSS', 'HSS Status', 'HSS Value', 'Hss']);
+    const sims = pickValue(row, ['SIMS', 'Sims', 'SIMS Status']);
+    const payment = pickValue(row, ['Payment', 'Payment Status', 'Payment BO']);
+    const bo = pickValue(row, ['BO', 'BO Status']);
+    const currentDocument = pickValue(row, ['Current Document', 'Current Doc', 'Current Document status', 'Current Document Status']);
+    const doPaymentStatus = pickValue(row, ['DO Payment Status', 'DO Payment', 'Payment DO', 'DO Payment status']);
 
     return {
-      sn: row['S. N.'] || row['S.No.'] || index + 1,
-      bl_no: row['Last 6 Digit BL No.'] || row['BL No.'] || row['Last 6 Digit BL No'] || row['Last 6 Digit BL. No.'],
-      order_status: row['Order Status'] || row['Status'],
-      so_no: row['Sales Order No. '] || row['SO No.'] || row['Sales Order No.'],
-      party_name: row['Party Name'] || row['Party'],
-      composition: row['Composition/Grade'] || row['Composition / Grade'] || row['Composition'],
-      entity: row['Intity Name'] || row['Entity'],
-      rate_as_per_so_usd: numberValue(rateColumnValues[index] ?? explicitRateValue ?? flexibleRateValue),
-      no_of_cont: numberValue(row['No. of Cont.'] || row['No of Cont.'] || row['No. of Cont']),
-      container_eta: row['Cont. ETA Date'] || row['Container ETA'] || row['Cont ETA Date'],
-      free_till: row['Free Till'] || row['Free Till Date'],
-      cha_name: row['CHA Name'] || row['CHA'],
+      sn: pickValue(row, ['S. N.', 'S.No.', 'S No.', 'SN']) || index + 1,
+      bl_no: pickValue(row, ['Last 6 Digit BL No.', 'Last 6 Digit BL No', 'Last 6 Digit BL. No.', 'BL No.', 'Last 6 Digit BL No. ']) || pickValue(row, ['BL Number', 'BL No']),
+      order_status: pickValue(row, ['Order Status', 'Status', 'Order status']),
+      so_no: pickValue(row, ['SO No.', 'Sales Order No.', 'SO No', 'SO Number', 'Sales Order No. ', 'SO no']),
+      party_name: partyName,
+      composition,
+      entity,
+      rate_as_per_so_usd: rateValue,
+      no_of_cont: numberValue(pickValue(row, ['No. of Cont.', 'No of Cont.', 'No. of Cont', 'No of Cont', 'No.of Cont', 'No of Containers', 'No of Container'])),
+      container_eta: containerEta,
+      free_till: freeTill,
+      cha_name: chaName,
       qty_kgs: numberValue(qtyValue),
-      duty_approx_inr: numberValue(row['DUTY AMT APPROX in INR'] || row['Duty Approx. (INR)'] || row['Duty Approximation in INR']),
+      duty_approx_inr: numberValue(pickValue(row, ['DUTY AMT APPROX in INR', 'Duty Approx. (INR)', 'Duty Approximation in INR', 'DUTY AMT APPROX', 'Duty Amt Approx INR', 'Duty Amount Approx IN INR'])),
       amount_usd: amountToBePaidUsd,
       advance_amount_paid_usd: advanceAmountPaidUsd,
-      amount_payable_inr: numberValue(row['Amount payable in RS (APPROX)'] || row['Amount Payable (INR)'] || row['Amount payable in INR']),
-      total_required_inr: numberValue(row['Total Amount required\n(In INR)'] || row['Total Amount required (In INR)'] || row['Total Amount (INR Approx.)']),
-      remarks: row['Remarks'] || row['Remark']
+      amount_payable_inr: numberValue(pickValue(row, ['Amount payable in RS (APPROX)', 'Amount Payable (INR)', 'Amount payable in INR', 'Amount payable in INR (approx)', 'Amount Payable in INR', 'Amount payable approx in INR'])),
+      total_required_inr: numberValue(pickValue(row, ['Total Amount required\n(In INR)', 'Total Amount required (In INR)', 'Total Amount (INR Approx.)', 'Total Amount Required (INR)', 'Total Amount required in INR', 'Total Amount required'])),
+      hss,
+      sims,
+      payment,
+      bo,
+      current_document: currentDocument,
+      do_payment_status: doPaymentStatus,
+      remarks,
+      remarks2: remarks,
+      rate_per_mts_usd: rateValue,
+      mts: pickValue(row, ['MTS', 'Mts', 'RATE PER MTS', 'Rate Per MTS'])
     };
   }).filter(row => row.bl_no || row.party_name);
+
   return {
     asOn: new Date().toISOString().slice(0, 10),
     rows,
