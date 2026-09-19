@@ -11,7 +11,7 @@ const ADMIN_PASSWORD = 'Marfani@12345';
 const AUTH_COOKIE = 'marfani_admin_session';
 const USERS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.json'), 'utf8'));
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
-const DEFAULT_LIVE_WORKBOOK_URL = 'https://marfanisteelpvtltd-my.sharepoint.com/:x:/g/personal/dms-msgroup_marfanisteel_com/IQAkxFhUOv2wQIdzGqC5p7__AdUOyL2WEfeYENY4RJNv6lI?e=kNM4pO';
+const DEFAULT_LIVE_WORKBOOK_URL = 'https://raw.githubusercontent.com/MarfaniSteelGroup/import-monitoring-data/main/Import%20Monitoring.xlsx.xlsm';
 const configuredWorkbookUrl = (process.env.LIVE_WORKBOOK_URL || '').trim();
 const LIVE_WORKBOOK_URL = configuredWorkbookUrl || DEFAULT_LIVE_WORKBOOK_URL;
 const CONTAINER_CST_URL = LIVE_WORKBOOK_URL;
@@ -33,6 +33,14 @@ function normalizeWorkbookUrl(url) {
 
   if (trimmed.includes('drive.google.com/uc?')) {
     return trimmed;
+  }
+
+  if (trimmed.includes('github.com/') && trimmed.includes('/blob/')) {
+    const match = trimmed.match(/^https?:\/\/github\.com\/(.+?)\/blob\/(.+)$/i);
+    if (match) {
+      const [, repoPath, branchAndFile] = match;
+      return `https://raw.githubusercontent.com/${repoPath}/${branchAndFile}`;
+    }
   }
 
   if ((trimmed.includes('sharepoint.com') || trimmed.includes('onedrive.live.com')) && !/[?&]download=1/.test(trimmed)) {
