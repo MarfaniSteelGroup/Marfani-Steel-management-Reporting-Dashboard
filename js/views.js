@@ -214,7 +214,7 @@ Views.fundPlanning = async function(stage){
     <div class="panel">
       <div class="panel-head">
         <h3 class="panel-title">Fund Planning Details</h3>
-        <span class="panel-note">${d.rows.length} line items &middot; as on ${d.asOn}</span>
+        <span class="panel-note">${d.rows.length} line items &middot; Live ${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
       </div>
       <div class="controls">
         <input class="control-input" id="fpSearch" placeholder="Search BL no., SO, party, CHA...">
@@ -244,14 +244,14 @@ Views.fundPlanning = async function(stage){
             <th class="num">Amount to be Paid (USD)</th>
             <th class="num">Amount Payable (INR)</th>
             <th class="num">Total Amount Required (INR)</th>
+            <th>Remarks</th>
             <th>HSS</th>
             <th>SIMS</th>
             <th>Payment</th>
-            <th>BO</th>
+            <th>BOE</th>
             <th>Current Document</th>
             <th>DO Payment Status</th>
             <th>SO No.</th>
-            <th>Remarks</th>
           </tr></thead>
           <tbody id="fpBody"></tbody>
         </table>
@@ -290,6 +290,7 @@ Views.fundPlanning = async function(stage){
         <td class="num">${fmt.usd(r.amount_usd)}</td>
         <td class="num">${fmt.inr(r.amount_payable_inr)}</td>
         <td class="num">${fmt.inr(r.total_required_inr)}</td>
+        <td class="wrap">${esc(r.remarks)}</td>
         <td>${esc(r.hss)}</td>
         <td>${esc(r.sims)}</td>
         <td>${esc(r.payment)}</td>
@@ -297,7 +298,6 @@ Views.fundPlanning = async function(stage){
         <td>${esc(r.current_document)}</td>
         <td>${esc(r.do_payment_status)}</td>
         <td>${esc(r.so_no)}</td>
-        <td class="wrap">${esc(r.remarks)}</td>
       </tr>
     `;
     }).join('');
