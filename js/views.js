@@ -251,12 +251,6 @@ Views.fundPlanning = async function(stage){
             <th class="num">Total Amount required (INR)</th>
             <th>HSS</th>
             <th>Remarks</th>
-            <th>SIMS</th>
-            <th>Payment</th>
-            <th>BOE</th>
-            <th>Current Document</th>
-            <th>DO Payment Status</th>
-            <th>SO No.</th>
           </tr></thead>
           <tbody id="fpBody"></tbody>
         </table>
@@ -264,6 +258,41 @@ Views.fundPlanning = async function(stage){
       <div id="fpEmpty" class="empty-state" style="display:none">No matching records.</div>
     </div>
   `;
+
+  function getSubtotalRow(rows){
+    const total = rows.reduce((acc, r) => {
+      acc.qty_kgs += Number(r.qty_kgs || 0);
+      acc.duty_approx_inr += Number(r.duty_approx_inr || 0);
+      acc.advance_amount_paid_usd += Number(r.advance_amount_paid_usd || 0);
+      acc.amount_usd += Number(r.amount_usd || 0);
+      acc.amount_payable_inr += Number(r.amount_payable_inr || 0);
+      acc.total_required_inr += Number(r.total_required_inr || 0);
+      return acc;
+    }, {
+      qty_kgs: 0,
+      duty_approx_inr: 0,
+      advance_amount_paid_usd: 0,
+      amount_usd: 0,
+      amount_payable_inr: 0,
+      total_required_inr: 0
+    });
+
+    return `
+      <tr class="total-row" style="font-weight:700; background: rgba(224,138,62,0.08);">
+        <td>Total</td>
+        <td colspan="9"></td>
+        <td class="num">${fmt.num(total.qty_kgs)}</td>
+        <td></td>
+        <td class="num">${fmt.inr(total.duty_approx_inr)}</td>
+        <td class="num">${fmt.usd(total.advance_amount_paid_usd)}</td>
+        <td class="num">${fmt.usd(total.amount_usd)}</td>
+        <td class="num">${fmt.inr(total.amount_payable_inr)}</td>
+        <td class="num">${fmt.inr(total.total_required_inr)}</td>
+        <td></td>
+        <td></td>
+      </tr>
+    `;
+  }
 
   function renderRows(){
     const body = document.getElementById('fpBody');
@@ -297,15 +326,9 @@ Views.fundPlanning = async function(stage){
         <td class="num">${fmt.inr(r.total_required_inr)}</td>
         <td>${esc(r.hss)}</td>
         <td class="wrap">${esc(r.remarks)}</td>
-        <td>${esc(r.sims)}</td>
-        <td>${esc(r.payment)}</td>
-        <td>${esc(r.boe ?? r.bo)}</td>
-        <td>${esc(r.current_document)}</td>
-        <td>${esc(r.do_payment_status)}</td>
-        <td>${esc(r.so_no)}</td>
       </tr>
     `;
-    }).join('');
+    }).join('') + getSubtotalRow(filtered);
   }
 
   function exportPrintableTable(mode) {
@@ -315,7 +338,7 @@ Views.fundPlanning = async function(stage){
     const printFont = '13.5px';
     const compactPadding = '5px';
     const pageTitle = document.querySelector('#pageTitle')?.textContent || 'Fund Planning';
-    const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24];
+    const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18];
     const widthMap = {
       0: '34px',
       1: '72px',
@@ -334,14 +357,8 @@ Views.fundPlanning = async function(stage){
       14: '90px',
       15: '98px',
       16: '104px',
-      17: '90px',
-      18: '180px',
-      19: '86px',
-      20: '82px',
-      21: '86px',
-      22: '110px',
-      23: '100px',
-      24: '76px'
+      17: '70px',
+      18: '160px'
     };
     const clonedTable = table.cloneNode(true);
     clonedTable.style.fontSize = printFont;
