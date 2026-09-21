@@ -33,6 +33,7 @@ function updateLiveReportStamp(){
 }
 
 async function navigate(route){
+  if(route === 'user-control') return;
   if(!ROUTES[route]) route = 'overview';
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.route === route));
   const cfg = ROUTES[route];

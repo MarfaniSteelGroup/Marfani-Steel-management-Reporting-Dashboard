@@ -7,8 +7,8 @@
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=7b49ce2">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=9c31d4c">
 <style>
   body.auth-locked > .hull { display: none; }
   .auth-gate {
@@ -16,26 +16,26 @@
     display: grid;
     place-items: center;
     padding: 24px;
-    background: #12161b;
-    color: #eef0f2;
-    font-family: "IBM Plex Sans", sans-serif;
+    background: #0b1420;
+    color: #f5f7f9;
+    font-family: "Manrope", sans-serif;
   }
   .auth-gate[hidden] { display: none; }
   .auth-panel {
     width: min(420px, 100%);
     padding: 28px 24px;
-    border: 1px solid #323d48;
+    border: 1px solid #2d455c;
     border-radius: 12px;
-    background: #181d24;
+    background: #111e2d;
     box-shadow: 0 18px 40px rgba(0,0,0,.25);
   }
-  .auth-panel h1 { margin: 0 0 8px; font-family: Oswald, sans-serif; }
-  .auth-panel p { margin: 0 0 20px; color: #8b95a1; }
+  .auth-panel h1 { margin: 0 0 8px; font-family: "Space Grotesk", sans-serif; }
+  .auth-panel p { margin: 0 0 20px; color: #91a5b8; }
   .auth-form { display: grid; gap: 14px; }
   .auth-form label { display: grid; gap: 7px; font-size: 13px; }
-  .auth-form input { padding: 12px; border: 1px solid #323d48; border-radius: 8px; background: #10161b; color: #eef0f2; font: inherit; }
-  .auth-form button { padding: 12px; border: 0; border-radius: 8px; background: #e08a3e; color: #111a1d; font-weight: 600; cursor: pointer; }
-  .auth-error { min-height: 18px; margin: 0; color: #cc5f56; font-size: 13px; }
+  .auth-form input { padding: 12px; border: 1px solid #2d455c; border-radius: 8px; background: #0b1420; color: #f5f7f9; font: inherit; }
+  .auth-form button { padding: 12px; border: 0; border-radius: 8px; background: #d99a57; color: #0b1420; font-weight: 700; cursor: pointer; }
+  .auth-error { min-height: 18px; margin: 0; color: #db7770; font-size: 13px; }
 </style>
 </head>
 <body class="auth-locked">
@@ -86,7 +86,7 @@
         <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/></svg>
         <span>Shipment Costing</span>
       </button>
-      <button class="nav-item user-control-tab" id="userControlTab" type="button" hidden>
+      <button class="nav-item user-control-tab" id="userControlTab" type="button">
         <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm7-3v6m3-3h-6"/></svg>
         <span>User Control</span>
       </button>
@@ -114,26 +114,61 @@
         <span class="stamp-date" id="asOnDate">LIVE 19-SEP-2026 00:00:00</span>
       </div>
       <div class="admin-tools">
-        <button class="admin-trigger" id="adminTrigger" type="button" aria-expanded="false" aria-controls="adminPanel" hidden>
+        <button class="admin-trigger" id="adminTrigger" type="button" aria-expanded="false" aria-controls="adminPanel">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8a7 7 0 0 1 14 0"/></svg>
           <span id="currentUserLabel">User</span>
         </button>
         <section class="admin-panel" id="adminPanel" hidden>
           <div class="admin-panel-heading">
             <div>
-              <strong>User control panel</strong>
+              <div class="control-panel-kicker">MARFANI STEEL GROUP</div>
+              <strong><span class="control-panel-menu">☰</span> User Control Panel</strong>
               <span>Manage people, login access, and report rights</span>
             </div>
             <div class="admin-panel-heading-actions">
-              <span class="admin-status">ACTIVE</span>
+              <span class="admin-status"><span class="status-dot"></span> ACTIVE</span>
+              <span class="control-panel-user" id="controlPanelUser">ADMIN</span>
               <button class="admin-panel-close" id="adminPanelClose" type="button" aria-label="Close user control panel">&times;</button>
             </div>
           </div>
+          <div class="control-panel-body">
+          <section class="control-dashboard-grid">
+            <article class="admin-profile-card">
+              <div class="control-card-label">ADMIN PROFILE</div>
+              <div class="admin-profile-main"><span class="admin-avatar">A</span><div><strong id="adminProfileName">Admin</strong><span id="adminProfileId">Administrator account</span></div></div>
+              <div class="admin-profile-role">Super Administrator</div>
+            </article>
+            <article class="admin-stat-card"><span>Total Users</span><strong id="totalUsersCount">0</strong><small>Registered accounts</small></article>
+            <article class="admin-stat-card"><span>Active Users</span><strong id="activeUsersCount">0</strong><small>Available accounts</small></article>
+            <article class="admin-stat-card"><span>New Users</span><strong id="newUsersCount">0</strong><small>Current user list</small></article>
+            <article class="admin-stat-card"><span>Requests</span><strong>--</strong><small>Not tracked</small></article>
+          </section>
+          <section class="control-section quick-actions-section">
+            <div class="control-section-title">QUICK ACTIONS</div>
+            <div class="quick-actions">
+              <button class="quick-action" type="button" data-action="add-user"><span>+</span> Add User</button>
+              <button class="quick-action" type="button" data-action="manage-roles"><span>R</span> Manage Roles</button>
+              <button class="quick-action" type="button" data-action="permissions"><span>✓</span> Permissions</button>
+              <button class="quick-action" type="button" data-action="reports"><span>▤</span> Reports</button>
+              <button class="quick-action" type="button" data-action="settings"><span>⚙</span> Settings</button>
+            </div>
+          </section>
+          <section class="control-section user-management-section">
+            <div class="control-section-heading"><div class="control-section-title">USER MANAGEMENT</div><span>Manage registered accounts</span></div>
+            <div class="user-search-wrap"><span>⌕</span><input id="userSearch" type="search" placeholder="Search user..." autocomplete="off"></div>
           <div class="admin-session">
             <span>Signed in as</span>
             <strong>Admin</strong>
           </div>
-          <form class="user-create-form" id="userCreateForm">
+          <form class="password-change-form" id="passwordChangeForm">
+            <strong>Change your password</strong>
+            <label>Current password <input id="currentPassword" type="password" autocomplete="current-password" required></label>
+            <label>New password <input id="newAccountPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+            <label>Confirm new password <input id="confirmAccountPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+            <button class="admin-action admin-create" type="submit">Update password</button>
+            <p class="password-change-message" id="passwordChangeMessage" aria-live="polite"></p>
+          </form>
+          <form class="user-create-form admin-only-control" id="userCreateForm">
             <strong>Create user access</strong>
             <label>Full name <input id="newName" type="text" minlength="2" maxlength="80" autocomplete="off" required></label>
             <label>User ID <input id="newUsername" type="text" minlength="3" maxlength="32" required></label>
@@ -144,7 +179,7 @@
             <button class="admin-action admin-create" type="submit">Create user</button>
             <p class="user-create-message" id="userCreateMessage" aria-live="polite"></p>
           </form>
-          <div class="active-users">
+          <div class="active-users admin-only-control">
             <div class="active-users-heading">
               <strong>Active users</strong>
               <button class="users-refresh" id="usersRefresh" type="button" aria-label="Refresh active users">Refresh</button>
@@ -153,11 +188,11 @@
               <span class="users-empty">Loading users...</span>
             </div>
           </div>
-          <button class="admin-action" id="refreshReports" type="button">
+          <button class="admin-action admin-only-control" id="refreshReports" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4L3 10m0 0V4m0 6h6M4 13a8 8 0 0 0 14.9 4L21 14m0 0v6m0-6h-6"/></svg>
             Refresh reports
           </button>
-          <a class="admin-action" href="/download/container-cst" download>
+          <a class="admin-action admin-only-control" href="/download/container-cst" download>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg>
             Download Container CST
           </a>
@@ -165,8 +200,17 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5m5 5H3m9-9h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/></svg>
             Log out
           </button>
+          </section>
+          <div class="control-bottom-grid">
+            <section class="control-section activity-section"><div class="control-section-title">RECENT ACTIVITY</div><ul class="control-list"><li><span class="activity-dot green"></span>Current session authenticated</li><li><span class="activity-dot blue"></span>Account security available</li><li><span class="activity-dot amber"></span>Permission controls ready</li></ul></section>
+            <section class="control-section activity-section"><div class="control-section-title">NOTIFICATIONS</div><ul class="control-list"><li><span class="activity-dot green"></span>System running normally</li><li><span class="activity-dot blue"></span>Reports are available</li><li><span class="activity-dot amber"></span>Requests are not tracked</li></ul></section>
+          </div>
+          <section class="control-section system-settings-section"><div class="control-section-title">SYSTEM SETTINGS</div><div class="settings-links"><button type="button" data-action="users">Users</button><button type="button" data-action="roles">Roles</button><button type="button" data-action="security">Security</button><button type="button" data-action="audit">Audit Logs</button><button type="button" data-action="email">Email Settings</button></div></section>
+          </div>
         </section>
       </div>
+      <button class="topbar-logout" id="quickLogout" type="button" aria-label="Log out">Log out</button>
+      <button class="topbar-password" id="quickPassword" type="button" hidden>Change password</button>
     </header>
 
     <main class="stage" id="stage">
@@ -177,8 +221,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/views.js"></script>
+<script src="js/utils.js?v=9c31d4a"></script>
+<script src="js/views.js?v=9c31d4a"></script>
 <script>
   (() => {
     const body = document.body;
@@ -189,19 +233,33 @@
     const welcomeUser = document.getElementById('welcomeUser');
     const setRole = (role, username, displayName) => {
       welcomeUser.textContent = `Welcome, ${displayName || username || 'User'}`;
+      adminTrigger.hidden = false;
+      userControlTab.hidden = role !== 'admin';
+      document.getElementById('quickPassword').hidden = role === 'admin';
+      document.querySelectorAll('.admin-only-control').forEach((element) => { element.hidden = role !== 'admin'; });
       if (role === 'admin') {
-        adminTrigger.hidden = false;
-        userControlTab.hidden = false;
+        body.classList.remove('regular-account');
         const userLabel = displayName || username || 'Admin';
         document.getElementById('currentUserLabel').textContent = userLabel;
+        document.getElementById('controlPanelUser').textContent = userLabel.toUpperCase();
+        document.getElementById('adminProfileName').textContent = displayName || username || 'Admin';
+        document.getElementById('adminProfileId').textContent = `${username || 'Admin'} account`;
         adminPanel.querySelector('.admin-session strong').textContent = userLabel;
+        loadActiveUsers();
+        if (window.location.hash === '#user-control') openUserControl(false);
         return;
       }
-      adminTrigger.hidden = true;
-      userControlTab.hidden = true;
       adminPanel.hidden = true;
       adminTrigger.setAttribute('aria-expanded', 'false');
       document.getElementById('currentUserLabel').textContent = displayName || username || 'User';
+      document.getElementById('controlPanelUser').textContent = (displayName || username || 'User').toUpperCase();
+      document.querySelector('.admin-panel-heading strong').innerHTML = '<span class="control-panel-menu">☰</span> Account Settings';
+      document.querySelector('.admin-panel-heading > div:first-child > span:last-child').textContent = 'Manage your account security';
+      body.classList.add('regular-account');
+      if (window.location.hash === '#user-control') {
+        window.location.hash = 'overview';
+        window.location.reload();
+      }
     };
 
     const checkSession = async () => {
@@ -252,38 +310,63 @@
       if (active) document.querySelectorAll('.nav-item[data-route]').forEach(item => item.classList.remove('active'));
     };
 
+    const openUserControl = (updateHash = true) => {
+      const currentRoute = (window.location.hash || '#overview').replace('#', '');
+      if (currentRoute !== 'user-control') sessionStorage.setItem('marfani_previous_route', currentRoute);
+      adminPanel.hidden = false;
+      body.classList.add('user-control-open');
+      adminTrigger.setAttribute('aria-expanded', 'true');
+      sessionStorage.setItem('marfani_user_control_open', '1');
+      if (updateHash) window.location.hash = 'user-control';
+      setUserControlActive(true);
+    };
+
+    document.getElementById('currentUserLabel').addEventListener('click', (event) => {
+      event.stopPropagation();
+      openUserControl();
+    });
+    document.getElementById('quickPassword').addEventListener('click', () => {
+      openUserControl();
+      document.getElementById('currentPassword').focus();
+    });
+
+    const closeUserControl = () => {
+      adminPanel.hidden = true;
+      body.classList.remove('user-control-open');
+      adminTrigger.setAttribute('aria-expanded', 'false');
+      sessionStorage.setItem('marfani_user_control_open', '0');
+      const previousRoute = sessionStorage.getItem('marfani_previous_route') || 'overview';
+      window.location.hash = previousRoute;
+      window.location.reload();
+    };
+
     adminTrigger.addEventListener('click', () => {
-      const isOpen = adminPanel.hidden;
-      adminPanel.hidden = !isOpen;
-      adminTrigger.setAttribute('aria-expanded', String(isOpen));
-      setUserControlActive(isOpen);
+      if (adminPanel.hidden) openUserControl();
+      else closeUserControl();
     });
     userControlTab.addEventListener('click', (event) => {
       event.stopPropagation();
-      adminPanel.hidden = false;
-      adminTrigger.setAttribute('aria-expanded', 'true');
-      setUserControlActive(true);
+      openUserControl();
     });
     document.getElementById('adminPanelClose').addEventListener('click', () => {
-      adminPanel.hidden = true;
-      adminTrigger.setAttribute('aria-expanded', 'false');
-      setUserControlActive(false);
-      const currentRoute = (window.location.hash || '#overview').replace('#', '');
-      document.querySelector(`.nav-item[data-route="${currentRoute}"]`)?.classList.add('active');
+      closeUserControl();
     });
-    document.getElementById('refreshReports').addEventListener('click', () => window.location.reload());
+    document.getElementById('refreshReports')?.addEventListener('click', () => window.location.reload());
     const activeUsersList = document.getElementById('activeUsersList');
+    let loadedUsers = [];
     const loadActiveUsers = async () => {
       try {
         const response = await fetch('/api/users', { credentials: 'same-origin' });
         if (!response.ok) throw new Error('Local fallback');
         const users = await response.json();
+        loadedUsers = users;
         renderActiveUsers(users);
       } catch (error) {
-        renderActiveUsers([
+        loadedUsers = [
           { username: 'Admin', display_name: 'Marfani Administrator', role: 'admin', permissions: ['entry', 'approval', 'user_creation'] },
           { username: 'Viewer', display_name: 'Reporting Viewer', role: 'viewer', permissions: [] }
-        ]);
+        ];
+        renderActiveUsers(loadedUsers);
       }
     };
     document.getElementById('userCreateForm').addEventListener('submit', async (event) => {
@@ -314,7 +397,35 @@
         message.className = 'user-create-message error';
       }
     });
+    document.getElementById('passwordChangeForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const message = document.getElementById('passwordChangeMessage');
+      const payload = {
+        currentPassword: document.getElementById('currentPassword').value,
+        newPassword: document.getElementById('newAccountPassword').value,
+        confirmPassword: document.getElementById('confirmAccountPassword').value
+      };
+      try {
+        const response = await fetch('/api/account/password', {
+          method: 'PATCH',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Could not update password.');
+        message.textContent = result.message;
+        message.className = 'password-change-message success';
+        event.target.reset();
+      } catch (error) {
+        message.textContent = error.message;
+        message.className = 'password-change-message error';
+      }
+    });
     const renderActiveUsers = (users) => {
+      document.getElementById('totalUsersCount').textContent = users.length;
+      document.getElementById('activeUsersCount').textContent = users.length;
+      document.getElementById('newUsersCount').textContent = users.length;
       activeUsersList.innerHTML = users.map(user => `
           <div class="active-user" data-username="${esc(user.username)}">
             <div class="active-user-name"><strong>${esc(user.display_name || user.username)}</strong><span>${esc(user.role)}</span></div>
@@ -358,9 +469,27 @@
         });
       });
     };
-    document.getElementById('usersRefresh').addEventListener('click', loadActiveUsers);
-    loadActiveUsers();
+    document.getElementById('userSearch').addEventListener('input', (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      renderActiveUsers(loadedUsers.filter(user => `${user.display_name || ''} ${user.username} ${user.role}`.toLowerCase().includes(query)));
+    });
+    document.querySelectorAll('[data-action="add-user"]').forEach((button) => button.addEventListener('click', () => {
+      document.getElementById('userCreateForm')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('newName')?.focus();
+    }));
+    document.querySelectorAll('[data-action="permissions"]').forEach((button) => button.addEventListener('click', () => {
+      document.getElementById('activeUsersList')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }));
+    document.querySelectorAll('[data-action="reports"]').forEach((button) => button.addEventListener('click', () => document.getElementById('refreshReports')?.click()));
+    document.querySelectorAll('[data-action="settings"]').forEach((button) => button.addEventListener('click', () => document.getElementById('passwordChangeForm')?.scrollIntoView({ behavior: 'smooth', block: 'center' })));
+    document.getElementById('usersRefresh')?.addEventListener('click', loadActiveUsers);
     document.getElementById('adminLogout').addEventListener('click', async () => {
+      sessionStorage.removeItem('marfani_admin_session');
+      sessionStorage.removeItem('marfani_admin_role');
+      try { await fetch('/logout', { redirect: 'manual', credentials: 'same-origin' }); } catch (error) { /* Static servers may not expose logout. */ }
+      window.location.reload();
+    });
+    document.getElementById('quickLogout').addEventListener('click', async () => {
       sessionStorage.removeItem('marfani_admin_session');
       sessionStorage.removeItem('marfani_admin_role');
       try { await fetch('/logout', { redirect: 'manual', credentials: 'same-origin' }); } catch (error) { /* Static servers may not expose logout. */ }
@@ -370,6 +499,6 @@
     checkSession();
   })();
 </script>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=9c31d4b"></script>
 </body>
 </html>

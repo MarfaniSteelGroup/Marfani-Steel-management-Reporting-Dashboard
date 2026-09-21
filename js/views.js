@@ -249,8 +249,14 @@ Views.fundPlanning = async function(stage){
             <th class="num">AMOUNT TO BE PAID IN USD</th>
             <th class="num">Amount payable in INR (APPROX)</th>
             <th class="num">Total Amount required (INR)</th>
-            <th>HSS</th>
+            <th>HSS Agmt</th>
             <th>Remarks</th>
+            <th>SIMS Status</th>
+            <th>Payment Term</th>
+            <th>BOE Status</th>
+            <th>Current Documents Status</th>
+            <th>DO Payment Status</th>
+            <th>SO No.</th>
           </tr></thead>
           <tbody id="fpBody"></tbody>
         </table>
@@ -290,6 +296,12 @@ Views.fundPlanning = async function(stage){
         <td class="num">${fmt.inr(total.total_required_inr)}</td>
         <td></td>
         <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
       </tr>
     `;
   }
@@ -325,73 +337,65 @@ Views.fundPlanning = async function(stage){
         <td class="num">${fmt.inr(r.amount_payable_inr)}</td>
         <td class="num">${fmt.inr(r.total_required_inr)}</td>
         <td>${esc(r.hss)}</td>
-        <td class="wrap">${esc(r.remarks)}</td>
+        <td class="wrap">${esc(r.remarks || '')}</td>
+        <td>${esc(r.sims)}</td>
+        <td>${esc(r.payment)}</td>
+        <td>${esc(r.boe || r.bo)}</td>
+        <td>${esc(r.current_document)}</td>
+        <td>${esc(r.do_payment_status)}</td>
+        <td>${esc(r.so_no)}</td>
       </tr>
     `;
     }).join('') + getSubtotalRow(filtered);
   }
 
   function exportPrintableTable(mode) {
-    const table = document.querySelector('.fp-print-area table');
+    const table = getActiveTableForExport();
     if (!table) return;
 
     const printFont = '13.5px';
-    const compactPadding = '5px';
-    const pageTitle = document.querySelector('#pageTitle')?.textContent || 'Fund Planning';
-    const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18];
+    const pageTitle = document.querySelector('#pageTitle')?.textContent || 'Active Dashboard Section';
+    const exportRange = { start: 0, end: 18 };
     const widthMap = {
-      0: '34px',
-      1: '72px',
-      2: '78px',
-      3: '150px',
-      4: '180px',
-      5: '72px',
-      6: '52px',
-      7: '90px',
-      8: '90px',
-      9: '88px',
-      10: '74px',
-      11: '88px',
-      12: '92px',
-      13: '88px',
-      14: '90px',
-      15: '98px',
-      16: '104px',
-      17: '70px',
-      18: '160px'
+      0: '34px', 1: '80px', 2: '92px', 3: '130px', 4: '180px', 5: '78px', 6: '58px',
+      7: '88px', 8: '88px', 9: '90px', 10: '76px', 11: '88px', 12: '102px', 13: '94px',
+      14: '104px', 15: '110px', 16: '110px', 17: '58px', 18: '58px'
     };
+
     const clonedTable = table.cloneNode(true);
     clonedTable.style.fontSize = printFont;
     clonedTable.style.borderCollapse = 'collapse';
     clonedTable.style.lineHeight = '1.2';
     clonedTable.style.tableLayout = 'fixed';
+    clonedTable.style.minWidth = '1800px';
+    clonedTable.style.width = '100%';
 
-    const headerCells = Array.from(clonedTable.querySelectorAll('thead tr th'));
-    headerCells.forEach((cell, index) => {
-      if (!visibleColumns.includes(index)) {
+    Array.from(clonedTable.querySelectorAll('thead tr th')).forEach((cell, index) => {
+      if (index < exportRange.start || index > exportRange.end) {
         cell.remove();
       } else {
         cell.style.fontSize = printFont;
-        cell.style.padding = compactPadding;
+        cell.style.padding = '5px';
         cell.style.lineHeight = '1.2';
-        cell.style.width = widthMap[index] || 'auto';
         cell.style.whiteSpace = 'normal';
+        cell.style.verticalAlign = 'top';
+        cell.style.width = widthMap[index] || 'auto';
       }
     });
 
-    const bodyRows = Array.from(clonedTable.querySelectorAll('tbody tr'));
-    bodyRows.forEach(row => {
-      row.style.lineHeight = '1.2';
+    Array.from(clonedTable.querySelectorAll('tbody tr')).forEach((row) => {
       Array.from(row.children).forEach((cell, index) => {
-        if (!visibleColumns.includes(index)) {
+        if (index < exportRange.start || index > exportRange.end) {
           cell.remove();
         } else {
           cell.style.fontSize = printFont;
-          cell.style.padding = compactPadding;
+          cell.style.padding = '5px';
           cell.style.lineHeight = '1.2';
-          cell.style.width = widthMap[index] || 'auto';
           cell.style.whiteSpace = 'normal';
           cell.style.verticalAlign = 'top';
+          cell.style.wordBreak = 'break-word';
+          cell.style.overflowWrap = 'anywhere';
+          cell.style.width = widthMap[index] || 'auto';
         }
       });
     });
@@ -404,6 +408,7 @@ Views.fundPlanning = async function(stage){
       wrapper.style.color = '#111';
       wrapper.style.fontSize = printFont;
       wrapper.style.lineHeight = '1.2';
+      wrapper.style.overflowX = 'auto';
       wrapper.appendChild(clonedTable);
       const old = document.body.innerHTML;
       document.body.innerHTML = '<div style="padding:24px;background:#fff;">' + wrapper.innerHTML + '</div>';
@@ -416,7 +421,7 @@ Views.fundPlanning = async function(stage){
     if (mode === 'pdf') {
       const printWindow = window.open('', '_blank', 'width=1200,height=900');
       if (!printWindow) return alert('Popup blocked. Please allow pop-ups to print as PDF.');
-      printWindow.document.write('<html><head><title>' + pageTitle + '</title><style>@page{size:A3 landscape;margin:8mm;} body{font-family:Arial,sans-serif;background:#fff;color:#111;padding:18px;font-size:13.5px;line-height:1.2;} table{width:100%;border-collapse:collapse;table-layout:fixed;line-height:1.2;} th,td{border:1px solid #111;padding:5px;text-align:left;font-size:13.5px;line-height:1.2;vertical-align:top;word-wrap:break-word;overflow-wrap:anywhere;} th{background:#f3f3f3;}</style></head><body>' + clonedTable.outerHTML + '</body></html>');
+      printWindow.document.write('<html><head><title>' + pageTitle + '</title><style>@page{size:A3 landscape;margin:8mm;} body{font-family:Arial,sans-serif;background:#fff;color:#111;padding:18px;font-size:13.5px;line-height:1.2;} table{width:100%;min-width:1800px;border-collapse:collapse;table-layout:fixed;line-height:1.2;} th,td{border:1px solid #111;padding:5px;text-align:left;font-size:13.5px;line-height:1.2;vertical-align:top;word-wrap:break-word;overflow-wrap:anywhere;white-space:normal;} th{background:#f3f3f3;}</style></head><body>' + clonedTable.outerHTML + '</body></html>');
       printWindow.document.close();
       printWindow.focus();
       setTimeout(() => printWindow.print(), 500);
@@ -427,11 +432,12 @@ Views.fundPlanning = async function(stage){
       if (!(window.XLSX && typeof window.XLSX.utils !== 'undefined')) {
         return alert('Excel export library is not available.');
       }
-      const rows = Array.from(clonedTable.querySelectorAll('tr')).map(tr => Array.from(tr.children).map(td => td.textContent.trim()));
+      const rows = Array.from(clonedTable.querySelectorAll('tr')).map((tr) => Array.from(tr.children).map((td) => (td.textContent || '').trim()));
       const sheet = window.XLSX.utils.aoa_to_sheet(rows);
       const workbook = window.XLSX.utils.book_new();
-      window.XLSX.utils.book_append_sheet(workbook, sheet, 'Fund Planning');
-      window.XLSX.writeFile(workbook, 'fund_planning_report.xlsx');
+      const sheetName = (pageTitle || 'Active Dashboard Section').replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'Active Dashboard Section';
+      window.XLSX.utils.book_append_sheet(workbook, sheet, sheetName.slice(0, 31));
+      window.XLSX.writeFile(workbook, (sheetName || 'active_dashboard_section') + '.xlsx');
     }
   }
 

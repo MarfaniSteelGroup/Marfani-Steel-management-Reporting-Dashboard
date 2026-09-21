@@ -98,14 +98,30 @@ function debounce(fn, ms=200){
   };
 }
 
+function getActiveTableForExport(){
+  if (typeof document === 'undefined') return null;
+
+  const currentStageTable = document.querySelector('#stage .table-wrap table') ||
+    document.querySelector('#stage table') ||
+    document.querySelector('.fp-print-area table');
+
+  if (currentStageTable) return currentStageTable;
+
+  const allTables = Array.from(document.querySelectorAll('table') || []);
+  return allTables.find((table) => {
+    const wrap = table.closest('.table-wrap, .fp-print-area, .panel');
+    return !!wrap || table.offsetParent !== null;
+  }) || allTables[0] || null;
+}
+
 const PALETTE = {
-  amber: '#e08a3e',
-  steel: '#5c86a8',
-  green: '#5fa377',
-  red:   '#cc5f56',
-  ink1:  '#c4cbd2',
-  ink2:  '#8b95a1',
-  gridline: 'rgba(255,255,255,0.06)'
+  amber: '#d99a57',
+  steel: '#76a9c9',
+  green: '#70b58d',
+  red:   '#db7770',
+  ink1:  '#d2dce5',
+  ink2:  '#91a5b8',
+  gridline: 'rgba(145,165,184,0.14)'
 };
 
 function chartDefaults(){

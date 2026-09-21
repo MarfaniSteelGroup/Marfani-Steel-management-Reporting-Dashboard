@@ -23,5 +23,14 @@
     "permissions": [
       "entry"
     ]
+  },
+  "Ritesh": {
+    "username": "Ritesh",
+    "display_name": "Ritesh Agrawal",
+    "password": "Magic@123@",
+    "role": "viewer",
+    "permissions": [
+      "entry"
+    ]
   }
 }

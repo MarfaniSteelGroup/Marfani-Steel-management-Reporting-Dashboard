@@ -736,6 +736,35 @@ app.get('/api/session', (req, res) => {
   res.json({ authenticated: true, username: user.username, display_name: user.display_name, role: user.role, permissions: user.permissions });
 });
 
+app.patch('/api/account/password', async (req, res) => {
+  const session = getSessionUser(req);
+  if (!session) return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
+
+  const currentPassword = String(req.body?.currentPassword || '');
+  const newPassword = String(req.body?.newPassword || '');
+  const confirmPassword = String(req.body?.confirmPassword || '');
+  if (currentPassword.length === 0 || newPassword.length < 8) {
+    return res.status(400).json({ error: 'Enter your current password and a new password of at least 8 characters.' });
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ error: 'The new password and confirmation do not match.' });
+  }
+  if (currentPassword === newPassword) {
+    return res.status(400).json({ error: 'Your new password must be different from the current password.' });
+  }
+
+  const account = USERS[session.username];
+  if (!account || account.password !== currentPassword) {
+    return res.status(401).json({ error: 'The current password is incorrect.' });
+  }
+
+  account.password = newPassword;
+  await saveUser({ username: session.username, ...account });
+  const value = Buffer.from(`${session.username}:${newPassword}`).toString('base64');
+  res.setHeader('Set-Cookie', `${AUTH_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax`);
+  res.json({ message: 'Password updated successfully.' });
+});
+
 app.get('/api/live-data/:name', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
