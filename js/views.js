@@ -315,7 +315,7 @@ Views.fundPlanning = async function(stage){
     const printFont = '13.5px';
     const compactPadding = '5px';
     const pageTitle = document.querySelector('#pageTitle')?.textContent || 'Fund Planning';
-    const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];
+    const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24];
     const widthMap = {
       0: '34px',
       1: '72px',
@@ -336,7 +336,12 @@ Views.fundPlanning = async function(stage){
       16: '104px',
       17: '90px',
       18: '180px',
-      19: '82px'
+      19: '86px',
+      20: '82px',
+      21: '86px',
+      22: '110px',
+      23: '100px',
+      24: '76px'
     };
     const clonedTable = table.cloneNode(true);
     clonedTable.style.fontSize = printFont;
