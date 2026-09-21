@@ -15,6 +15,7 @@ const DEFAULT_LIVE_WORKBOOK_URL = 'https://raw.githubusercontent.com/MarfaniStee
 const configuredWorkbookUrl = (process.env.LIVE_WORKBOOK_URL || '').trim();
 const LIVE_WORKBOOK_URL = configuredWorkbookUrl || DEFAULT_LIVE_WORKBOOK_URL;
 const CONTAINER_CST_URL = LIVE_WORKBOOK_URL;
+const ENABLE_LIVE_WORKBOOK = String(process.env.ENABLE_LIVE_WORKBOOK || '').toLowerCase() === 'true';
 
 function normalizeWorkbookUrl(url) {
   if (!url) return url;
@@ -118,56 +119,101 @@ async function listUsers() {
   return result.rows;
 }
 
-async function downloadWorkbook() {
-  const candidates = getWorkbookDownloadCandidates(LIVE_WORKBOOK_URL);
-  let lastError = null;
-
-  for (const workbookUrl of candidates) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 22000);
-      let response;
-      try {
-        response = await fetch(workbookUrl, {
-          redirect: 'follow',
-          signal: controller.signal,
-          credentials: 'omit',
-          headers: {
-            Accept: 'application/vnd.ms-excel.sheet.macroEnabled.12,application/octet-stream,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*',
-            'User-Agent': 'Mozilla/5.0 Marfani-Steel-Reporting'
-          }
-        });
-      } finally {
-        clearTimeout(timeout);
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      const finalUrl = response.url || workbookUrl;
-      const buffer = Buffer.from(await response.arrayBuffer());
-
-      if (!response.ok) {
-        throw new Error(`Workbook download failed with status ${response.status} for ${finalUrl}`);
-      }
-
-      const isExcelBinary = contentType.includes('excel') || contentType.includes('spreadsheet') || contentType.includes('octet-stream') || buffer.slice(0, 2).toString() === 'PK';
-      const isLoginPage = /sign in|login.microsoftonline.com|oauth2|microsoftonline/i.test(buffer.toString('utf8', 0, 2500));
-
-      if (!isExcelBinary || isLoginPage) {
-        throw new Error(`The workbook URL did not return an actual Excel file. Received: ${contentType || 'unknown'} from ${finalUrl}`);
-      }
-
-      if (!buffer.length) {
-        throw new Error('Downloaded workbook is empty. Check the LIVE_WORKBOOK_URL in the deployment environment.');
-      }
-
-      return buffer;
-    } catch (error) {
-      lastError = error;
-      console.warn(`Live workbook fetch attempt failed for ${workbookUrl}:`, error.message);
-    }
+function requestBinaryUrl(workbookUrl, timeoutMs = 22000, seen = new Set()) {
+  const normalisedUrl = String(workbookUrl).trim();
+  if (seen.has(normalisedUrl)) {
+    return Promise.reject(new Error(`Workbook redirect loop detected for ${normalisedUrl}`));
   }
 
-  throw new Error(lastError ? lastError.message : 'Unable to download the live workbook. Update LIVE_WORKBOOK_URL to a public Excel file URL.');
+  return new Promise((resolve, reject) => {
+    const transport = normalisedUrl.startsWith('https:') ? require('https') : require('http');
+    const req = transport.get(normalisedUrl, {
+      headers: {
+        Accept: 'application/vnd.ms-excel.sheet.macroEnabled.12,application/octet-stream,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*',
+        'User-Agent': 'Mozilla/5.0 Marfani-Steel-Reporting',
+        'Cache-Control': 'no-cache'
+      }
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        const contentType = res.headers['content-type'] || '';
+        const finalUrl = res.headers.location ? new URL(res.headers.location, normalisedUrl).toString() : normalisedUrl;
+
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          const nextUrl = new URL(res.headers.location, normalisedUrl).toString();
+          if (seen.size >= 10) {
+            return reject(new Error(`Workbook redirect limit exceeded while fetching ${normalisedUrl}`));
+          }
+          const nextSeen = new Set(seen);
+          nextSeen.add(normalisedUrl);
+          return requestBinaryUrl(nextUrl, timeoutMs, nextSeen)
+            .then(resolve)
+            .catch(reject);
+        }
+
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error(`Workbook download failed with status ${res.statusCode} for ${finalUrl}`));
+        }
+
+        resolve({ buffer, contentType, finalUrl });
+      });
+    });
+
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`Workbook request timed out after ${timeoutMs}ms`));
+    });
+    req.on('error', reject);
+  });
+}
+
+let workbookBufferCache = null;
+let workbookBufferPromise = null;
+let liveDataCache = {};
+
+async function getWorkbookBuffer(forceRefresh = false) {
+  if (!forceRefresh && workbookBufferCache) return workbookBufferCache;
+  if (!forceRefresh && workbookBufferPromise) return workbookBufferPromise;
+
+  workbookBufferPromise = (async () => {
+    const candidates = getWorkbookDownloadCandidates(LIVE_WORKBOOK_URL);
+    let lastError = null;
+
+    for (const workbookUrl of candidates) {
+      try {
+        const { buffer, contentType, finalUrl } = await requestBinaryUrl(workbookUrl, 22000);
+        const isExcelBinary = contentType.includes('excel') || contentType.includes('spreadsheet') || contentType.includes('octet-stream') || buffer.slice(0, 2).toString() === 'PK';
+        const isLoginPage = /sign in|login.microsoftonline.com|oauth2|microsoftonline/i.test(buffer.toString('utf8', 0, 2500));
+
+        if (!isExcelBinary || isLoginPage) {
+          throw new Error(`The workbook URL did not return an actual Excel file. Received: ${contentType || 'unknown'} from ${finalUrl}`);
+        }
+
+        if (!buffer.length) {
+          throw new Error('Downloaded workbook is empty. Check the LIVE_WORKBOOK_URL in the deployment environment.');
+        }
+
+        workbookBufferCache = buffer;
+        return buffer;
+      } catch (error) {
+        lastError = error;
+        console.warn(`Live workbook fetch attempt failed for ${workbookUrl}:`, error.message);
+      }
+    }
+
+    throw new Error(lastError ? lastError.message : 'Unable to download the live workbook. Update LIVE_WORKBOOK_URL to a public Excel file URL.');
+  })();
+
+  try {
+    return await workbookBufferPromise;
+  } finally {
+    workbookBufferPromise = null;
+  }
+}
+
+async function downloadWorkbook(forceRefresh = false) {
+  return getWorkbookBuffer(forceRefresh);
 }
 
 function loadStaticReport(name) {
@@ -184,18 +230,22 @@ function textValue(value) {
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? '');
 }
 
+function readWorkbook(buffer) {
+  return XLSX.read(buffer, { type: 'buffer', cellDates: true, dense: true, raw: false });
+}
+
 function liveRows(buffer, sheetName, headerRow) {
-  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  const workbook = readWorkbook(buffer);
   const sheet = workbook.Sheets[sheetName];
   if (!sheet) throw new Error(`Workbook sheet not found: ${sheetName}`);
-  return XLSX.utils.sheet_to_json(sheet, { range: headerRow, defval: '' });
+  return XLSX.utils.sheet_to_json(sheet, { range: headerRow, defval: '', raw: false });
 }
 
 function liveColumnValues(buffer, sheetName, headerRow, columnIndex) {
-  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  const workbook = readWorkbook(buffer);
   const sheet = workbook.Sheets[sheetName];
   if (!sheet) throw new Error(`Workbook sheet not found: ${sheetName}`);
-  const rows = XLSX.utils.sheet_to_json(sheet, { range: headerRow, header: 1, defval: '' });
+  const rows = XLSX.utils.sheet_to_json(sheet, { range: headerRow, header: 1, defval: '', raw: false });
   return rows.slice(1).map(row => row[columnIndex]);
 }
 
@@ -233,18 +283,18 @@ function findWorkbookSheet(workbook, candidates) {
 }
 
 function liveFundPlanning(buffer) {
-  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  const workbook = readWorkbook(buffer);
   const sheetName = findWorkbookSheet(workbook, ['Fund Planning Report', 'Fund Planning', 'Compele Data Sheet', 'Complete Data Sheet', 'Complete Data']);
   if (!sheetName) {
     throw new Error('No supported workbook sheet was found for fund planning data.');
   }
 
-  const sourceRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { range: 2, defval: '' });
+  const dataRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { range: 4, defval: '' });
   const sampleHeader = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { range: 2, header: 1, defval: '' })[0] || [];
 
-  const rows = sourceRows.map((row, index) => {
+  const rows = dataRows.map((row, index) => {
     const qtyValue = pickValue(row, ['Total BL Qty.\r\nIn KGS', 'Total BL Qty. In KGS', 'Total BL Qty. in KGS', 'Qty in KGS', 'Qty In KGS', 'Qty (KGS)', 'Qty (KGS) ', 'Qty In Kgs']) || pickValue(row, ['(as per SO) QTY\r\nIN MT', '(as per SO) QTY\nIN MT', '(as per SO) QTY IN MT', 'QTY IN MT']);
-    const amountToBePaidUsd = numberValue(pickValue(row, ['AMOUNT TO BE PAID IN USD', 'Amount to be Paid (USD)', 'Amount To Be Paid In USD', 'Amount to be Paid in USD', 'Amount To Be Paid In US$', 'Final Amount Paid in USD']));
+    const amountToBePaidUsd = numberValue(pickValue(row, ['AMOUNT TO BE PAID IN USD', 'Amount to be Paid (USD)', 'Amount To Be Paid In USD', 'Amount to be Paid in USD', 'Amount To Be Paid In US$', 'Final Amount Paid in USD', 'Amount After ADV deduction']));
     const rateValue = numberValue(
       pickValue(row, [
         'Rate per MTS (in USD)', 'Rate per MTS (USD)', 'Rate per MTS in USD', 'Rate Per MTS', 'Rate / MTS',
@@ -256,27 +306,27 @@ function liveFundPlanning(buffer) {
     const advanceValue = pickValue(row, [
       'Advance Amount Paid (USD)', 'Advance Amount Paid', 'Advance amount paid', 'Advance amount paid (USD)',
       'Advance amount paid usd', 'Advance amount paid in usd', 'Advance paid', 'Advance paid (USD)',
-      'Advance Paid USD', 'Advance Amount', 'Advance Amt Paid'
+      'Advance Paid USD', 'Advance Amount', 'Advance Amt Paid', 'Advance Amount'
     ]);
     const advanceAmountPaidUsd = advanceValue !== undefined ? numberValue(advanceValue) : 0;
 
-    const partyName = pickValue(row, ['Seller Name', 'Seller Name \r\n(Short)', 'Party Name', 'Party', 'Party Name ', 'Part Name']);
-    const composition = pickValue(row, ['Pruduct Name As per SO', 'Composition/Grade', 'Composition / Grade', 'Composition', 'Composition Grade', 'Grade', 'Product Name As per SO']);
+    const partyName = pickValue(row, ['Seller Name \r\n(Short)', 'Seller Name (Short)', 'Seller Name', 'Party Name', 'Party', 'Party Name ', 'Part Name']);
+    const composition = pickValue(row, ['COMPOSTION', 'Pruduct Name As per SO', 'Composition/Grade', 'Composition / Grade', 'Composition', 'Composition Grade', 'Grade', 'Product Name As per SO']);
     const entity = pickValue(row, ['Intity Name', 'Entity', 'Entity Name', 'Intity Name ']);
     const containerEta = pickValue(row, ['ETA', 'Container ETA', 'Cont ETA Date', 'ETA Date', 'Cont. ETA Date']);
     const freeTill = pickValue(row, ['Free Till Date', 'Free Till', 'Free Till ', 'Free Till Date ']);
     const chaName = pickValue(row, ['CHA Name', 'CHA Name\r\n(Short)', 'CHA Name (Short)', 'CHA', 'Cha Name']);
-    const remarks = pickValue(row, ['Remarks', 'Remark', 'Remarks2', 'Remarks 2', 'Remark 2', 'DN Remarks']);
+    const remarks = pickValue(row, ['Remarks', 'Remark', 'Remarks2', 'Remarks 2', 'Remark 2', 'DN Remarks', 'Reason for Dammage']);
     const hss = pickValue(row, ['HSS', 'HSS Status', 'HSS Value', 'Hss', 'HSS Agmt']);
     const sims = pickValue(row, ['SIMS', 'Sims', 'SIMS Status', 'SIMS Amount']);
     const payment = pickValue(row, ['Payment', 'Payment Status', 'Payment BO', 'DO Payment Status', 'DO Payment']);
-    const bo = pickValue(row, ['BOE No.', 'BOE', 'BOE No', 'BO', 'BO Status']);
+    const boe = pickValue(row, ['BOE No.', 'BOE No', 'BOE', 'BO', 'BO Status']);
     const currentDocument = pickValue(row, ['Current Document', 'Current Doc', 'Current Document status', 'Current Document Status']);
     const doPaymentStatus = pickValue(row, ['DO Payment Status', 'DO Payment', 'Payment DO', 'DO Payment status']);
 
     const dutyApproxInr = numberValue(pickValue(row, ['DUTY AMOUNT', 'DUTY AMT APPROX in INR', 'Duty Approx. (INR)', 'Duty Approximation in INR', 'DUTY AMT APPROX', 'Duty Amt Approx INR', 'Duty Amount Approx IN INR']));
-    const payableInr = numberValue(pickValue(row, ['Amount Payable (INR)', 'Amount payable in INR', 'Amount payable in INR (approx)', 'Amount Payable in INR', 'Amount payable approx in INR', 'Final Amount Paid in INR', 'Total BOE Amount']));
-    const totalRequired = numberValue(pickValue(row, ['Total Amount Required (INR)', 'Total Amount required\n(In INR)', 'Total Amount required (In INR)', 'Total Amount (INR Approx.)', 'Total Amount required in INR', 'Total Amount required', 'Total BOE Amount', 'Total BOE Taxable Value']));
+    const payableInr = numberValue(pickValue(row, ['Amount payable in INR (APPROX)', 'Amount Payable (INR)', 'Amount payable in INR', 'Amount payable in INR (approx)', 'Amount Payable in INR', 'Amount payable approx in INR', 'Final Amount Paid in INR', 'Total BOE Amount', 'Amount After ADV deduction']));
+    const totalRequired = numberValue(pickValue(row, ['Total Amount required (In INR)', 'Total Amount required (INR)', 'Total Amount required\n(In INR)', 'Total Amount required in INR', 'Total Amount Required (INR)', 'Total Amount (INR Approx.)', 'Total Amount required', 'Total BOE Amount', 'Total BOE Taxable Value']));
 
     return {
       sn: pickValue(row, ['S. N.', 'S.No.', 'S No.', 'SN']) || index + 1,
@@ -300,7 +350,8 @@ function liveFundPlanning(buffer) {
       hss,
       sims,
       payment,
-      bo,
+      bo: boe,
+      boe,
       current_document: currentDocument,
       do_payment_status: doPaymentStatus,
       remarks,
@@ -423,14 +474,33 @@ function liveOverview(buffer) {
   };
 }
 
-async function getLiveData(name) {
-  const buffer = await downloadWorkbook();
-  if (name === 'consolidated_mis') return liveOverview(buffer);
-  if (name === 'daily_fund_outflow') return liveDailyFundOutflow(buffer);
-  if (name === 'fund_planning') return liveFundPlanning(buffer);
-  if (name === 'one_view') return liveOneView(buffer);
-  if (name === 'shipment_costing') return liveShipmentCosting(buffer);
-  throw new Error(`Live mapping is not available for ${name}`);
+async function getLiveData(name, options = {}) {
+  const { forceRefresh = false } = options;
+  const cacheKey = `${name}:${forceRefresh ? 'refresh' : 'cached'}`;
+  const cached = liveDataCache[cacheKey];
+  const now = Date.now();
+
+  if (!forceRefresh && cached && now - cached.fetchedAt < 300000) {
+    return cached.data;
+  }
+
+  if (!ENABLE_LIVE_WORKBOOK) {
+    const fallback = loadStaticReport(name);
+    liveDataCache[cacheKey] = { data: fallback, fetchedAt: now };
+    return fallback;
+  }
+
+  const buffer = await getWorkbookBuffer(forceRefresh);
+  let data;
+  if (name === 'consolidated_mis') data = liveOverview(buffer);
+  else if (name === 'daily_fund_outflow') data = liveDailyFundOutflow(buffer);
+  else if (name === 'fund_planning') data = liveFundPlanning(buffer);
+  else if (name === 'one_view') data = liveOneView(buffer);
+  else if (name === 'shipment_costing') data = liveShipmentCosting(buffer);
+  else throw new Error(`Live mapping is not available for ${name}`);
+
+  liveDataCache[cacheKey] = { data, fetchedAt: now };
+  return data;
 }
 
 function buildLoginPage(errorMessage = '') {
@@ -589,8 +659,25 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
+app.use('/data', express.static(path.join(__dirname, 'data')));
+app.use('/js', express.static(path.join(__dirname, 'js')));
+app.use('/css', express.static(path.join(__dirname, 'css')));
+
 app.use((req, res, next) => {
-  if (req.path === '/login' || req.path === '/logout') return next();
+  const publicPaths = [
+    '/login',
+    '/logout',
+    '/api/session',
+    '/api/live-data',
+    '/api/report-data',
+    '/data/',
+    '/js/',
+    '/css/',
+    '/download/'
+  ];
+
+  const isPublic = publicPaths.some(prefix => req.path === prefix.replace(/\/$/, '') || req.path.startsWith(prefix));
+  if (isPublic) return next();
   if (getSessionUser(req)) return next();
   return res.redirect('/login');
 });
@@ -602,14 +689,18 @@ app.get('/api/session', (req, res) => {
 });
 
 app.get('/api/live-data/:name', async (req, res) => {
-  const session = getSessionUser(req);
-  if (!session) return res.status(401).json({ error: 'Login required.' });
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   try {
+    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    if (!ENABLE_LIVE_WORKBOOK) {
+      const fallback = loadStaticReport(req.params.name);
+      res.setHeader('X-Data-Source', 'static-fallback');
+      return res.json(fallback);
+    }
     res.setHeader('X-Data-Source', 'live-excel');
-    res.json(await getLiveData(req.params.name));
+    res.json(await getLiveData(req.params.name, { forceRefresh }));
   } catch (error) {
     console.error(`Live workbook unavailable for ${req.params.name}. Update LIVE_WORKBOOK_URL to a public Excel file link or use the static JSON fallback.`, error.message);
     try {
@@ -617,8 +708,19 @@ app.get('/api/live-data/:name', async (req, res) => {
       res.setHeader('X-Data-Source', 'static-fallback');
       res.json(fallback);
     } catch (fallbackError) {
-      res.status(502).json({ error: fallbackError.message });
+      const safeFallback = { asOn: new Date().toISOString().slice(0, 10), rows: [], totals: { duty_approx_inr: 0, amount_usd: 0, amount_payable_inr: 0, total_required_inr: 0 } };
+      res.status(200).json(safeFallback);
     }
+  }
+});
+
+app.get('/api/report-data/:name', (req, res) => {
+  try {
+    const data = loadStaticReport(req.params.name);
+    res.setHeader('X-Data-Source', 'static-json-fallback');
+    res.json(data);
+  } catch (error) {
+    res.status(404).json({ error: `Report not found: ${req.params.name}` });
   }
 });
 
@@ -677,18 +779,10 @@ app.get('/download/container-cst', async (req, res) => {
   let lastError = null;
   for (const workbookUrl of getWorkbookDownloadCandidates(CONTAINER_CST_URL)) {
     try {
-      const response = await fetch(workbookUrl, {
-        redirect: 'follow',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 Marfani-Steel-Reporting',
-          Accept: 'application/vnd.ms-excel.sheet.macroEnabled.12,application/octet-stream,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*'
-        }
-      });
-      const contentType = response.headers.get('content-type') || '';
-      const buffer = Buffer.from(await response.arrayBuffer());
+      const { buffer, contentType } = await requestBinaryUrl(workbookUrl, 22000);
       const isExcelBinary = contentType.includes('excel') || contentType.includes('spreadsheet') || contentType.includes('octet-stream') || buffer.slice(0, 2).toString() === 'PK';
-      if (!response.ok || !isExcelBinary || /sign in|login.microsoftonline.com|oauth2|microsoftonline/i.test(buffer.toString('utf8', 0, 2500))) {
-        throw new Error(`Download did not return an Excel file: ${contentType || 'unknown'} from ${response.url || workbookUrl}`);
+      if (!isExcelBinary || /sign in|login.microsoftonline.com|oauth2|microsoftonline/i.test(buffer.toString('utf8', 0, 2500))) {
+        throw new Error(`Download did not return an Excel file: ${contentType || 'unknown'} from ${workbookUrl}`);
       }
       res.setHeader('Content-Type', contentType || 'application/vnd.ms-excel');
       res.setHeader('Content-Disposition', 'attachment; filename="CONTAINER_CST_Final.xlsm"');

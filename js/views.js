@@ -237,20 +237,20 @@ Views.fundPlanning = async function(stage){
             <th>Order Status</th>
             <th>Party Name</th>
             <th>Composition / Grade</th>
-            <th>Entity</th>
+            <th>Inty Name</th>
             <th>No. of Cont.</th>
             <th>Container ETA</th>
             <th>Free Till</th>
             <th>CHA Name</th>
             <th class="num">Qty in KGS</th>
-            <th class="num">Rate / MTS (USD)</th>
-            <th class="num">Duty Approx. (INR)</th>
-            <th class="num">Advance Paid (USD)</th>
-            <th class="num">Amount to be Paid (USD)</th>
-            <th class="num">Amount Payable (INR)</th>
-            <th class="num">Total Amount Required (INR)</th>
-            <th>Remarks</th>
+            <th class="num">Rate per MTS (in USD)</th>
+            <th class="num">DUTY AMT APPROX in INR</th>
+            <th class="num">Advance paid in USD</th>
+            <th class="num">AMOUNT TO BE PAID IN USD</th>
+            <th class="num">Amount payable in INR (APPROX)</th>
+            <th class="num">Total Amount required (INR)</th>
             <th>HSS</th>
+            <th>Remarks</th>
             <th>SIMS</th>
             <th>Payment</th>
             <th>BOE</th>
@@ -295,11 +295,11 @@ Views.fundPlanning = async function(stage){
         <td class="num">${fmt.usd(r.amount_usd)}</td>
         <td class="num">${fmt.inr(r.amount_payable_inr)}</td>
         <td class="num">${fmt.inr(r.total_required_inr)}</td>
-        <td class="wrap">${esc(r.remarks)}</td>
         <td>${esc(r.hss)}</td>
+        <td class="wrap">${esc(r.remarks)}</td>
         <td>${esc(r.sims)}</td>
         <td>${esc(r.payment)}</td>
-        <td>${esc(r.bo || r.boe)}</td>
+        <td>${esc(r.boe ?? r.bo)}</td>
         <td>${esc(r.current_document)}</td>
         <td>${esc(r.do_payment_status)}</td>
         <td>${esc(r.so_no)}</td>
@@ -312,28 +312,36 @@ Views.fundPlanning = async function(stage){
     const table = document.querySelector('.fp-print-area table');
     if (!table) return;
 
+    const printFont = '13.5px';
+    const compactPadding = '5px';
     const pageTitle = document.querySelector('#pageTitle')?.textContent || 'Fund Planning';
     const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17];
     const clonedTable = table.cloneNode(true);
+    clonedTable.style.fontSize = printFont;
+    clonedTable.style.borderCollapse = 'collapse';
+    clonedTable.style.lineHeight = '1.2';
 
     const headerCells = Array.from(clonedTable.querySelectorAll('thead tr th'));
     headerCells.forEach((cell, index) => {
       if (!visibleColumns.includes(index)) {
         cell.remove();
       } else {
-        cell.style.fontSize = '11px';
-        cell.style.padding = '6px';
+        cell.style.fontSize = printFont;
+        cell.style.padding = compactPadding;
+        cell.style.lineHeight = '1.2';
       }
     });
 
     const bodyRows = Array.from(clonedTable.querySelectorAll('tbody tr'));
     bodyRows.forEach(row => {
+      row.style.lineHeight = '1.2';
       Array.from(row.children).forEach((cell, index) => {
         if (!visibleColumns.includes(index)) {
           cell.remove();
         } else {
-          cell.style.fontSize = '11px';
-          cell.style.padding = '6px';
+          cell.style.fontSize = printFont;
+          cell.style.padding = compactPadding;
+          cell.style.lineHeight = '1.2';
         }
       });
     });
@@ -344,6 +352,8 @@ Views.fundPlanning = async function(stage){
       wrapper.style.padding = '18px';
       wrapper.style.background = '#fff';
       wrapper.style.color = '#111';
+      wrapper.style.fontSize = printFont;
+      wrapper.style.lineHeight = '1.2';
       wrapper.appendChild(clonedTable);
       const old = document.body.innerHTML;
       document.body.innerHTML = '<div style="padding:24px;background:#fff;">' + wrapper.innerHTML + '</div>';
@@ -356,7 +366,7 @@ Views.fundPlanning = async function(stage){
     if (mode === 'pdf') {
       const printWindow = window.open('', '_blank', 'width=1200,height=900');
       if (!printWindow) return alert('Popup blocked. Please allow pop-ups to print as PDF.');
-      printWindow.document.write('<html><head><title>' + pageTitle + '</title><style>@page{size:A3 landscape;margin:8mm;} body{font-family:Arial,sans-serif;background:#fff;color:#111;padding:18px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #111;padding:6px; text-align:left; font-size:11px;} th{background:#f3f3f3;}</style></head><body>' + clonedTable.outerHTML + '</body></html>');
+      printWindow.document.write('<html><head><title>' + pageTitle + '</title><style>@page{size:A3 landscape;margin:8mm;} body{font-family:Arial,sans-serif;background:#fff;color:#111;padding:18px;font-size:13.5px;line-height:1.2;} table{width:100%;border-collapse:collapse;line-height:1.2;} th,td{border:1px solid #111;padding:5px;text-align:left;font-size:13.5px;line-height:1.2;} th{background:#f3f3f3;}</style></head><body>' + clonedTable.outerHTML + '</body></html>');
       printWindow.document.close();
       printWindow.focus();
       setTimeout(() => printWindow.print(), 500);

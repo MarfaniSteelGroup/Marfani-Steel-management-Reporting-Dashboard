@@ -57,12 +57,27 @@ const DataStore = (() => {
     } catch(error) {
       console.warn(`Live workbook unavailable for ${name}; using saved report data.`, error);
     }
-    const res = await fetch(`data/${name}.json`);
-    if(!res.ok) throw new Error(`Failed to load ${name}`);
-    const json = await res.json();
-    window.dashboardDataSource = 'static-fallback';
-    cache[name] = { data: json, loadedAt: Date.now() };
-    return json;
+    const fallbackUrls = [
+      `/api/report-data/${name}`,
+      `data/${name}.json`
+    ];
+
+    let lastFallbackError = null;
+    for (const url of fallbackUrls) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        window.dashboardDataSource = url.startsWith('/api/') ? 'static-api' : 'static-fallback';
+        cache[name] = { data: json, loadedAt: Date.now() };
+        return json;
+      } catch (error) {
+        lastFallbackError = error;
+        console.warn(`Saved report fallback failed for ${url}.`, error);
+      }
+    }
+
+    throw new Error(`Failed to load ${name}: ${lastFallbackError ? lastFallbackError.message : 'unknown fallback error'}`);
   }
   return { load };
 })();
