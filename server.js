@@ -311,7 +311,8 @@ function liveFundPlanning(buffer) {
     const advanceAmountPaidUsd = advanceValue !== undefined ? numberValue(advanceValue) : 0;
 
     const partyFromHeaderIndex = sampleHeader && sampleHeader[14] !== undefined ? row[sampleHeader[14]] : undefined;
-    const partyName = partyFromHeaderIndex ?? pickValue(row, ['Seller Name \r\n(Short)', 'Seller Name (Short)', 'Seller Name', 'Party Name', 'Party', 'Party Name ', 'Part Name']);
+    const partyName = partyFromHeaderIndex
+      ?? pickValue(row, ['Seller Name (Short)', 'Seller Name (Shot)', 'Seller Name\r\n(Short)', 'Seller Name\r\n(Shot)', 'Seller Name', 'Party Name', 'Party', 'Party Name ', 'Part Name']);
     const composition = pickValue(row, ['COMPOSTION', 'Pruduct Name As per SO', 'Composition/Grade', 'Composition / Grade', 'Composition', 'Composition Grade', 'Grade', 'Product Name As per SO']);
     const entity = pickValue(row, ['Intity Name', 'Entity', 'Entity Name', 'Intity Name ']);
     const containerEta = pickValue(row, ['ETA', 'Container ETA', 'Cont ETA Date', 'ETA Date', 'Cont. ETA Date']);
