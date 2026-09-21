@@ -218,7 +218,7 @@ async function downloadWorkbook(forceRefresh = false) {
 
 function loadStaticReport(name) {
   const filePath = path.join(__dirname, 'data', `${name}.json`);
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  return normalizeReportContent(JSON.parse(fs.readFileSync(filePath, 'utf8')));
 }
 
 function numberValue(value) {
@@ -228,6 +228,36 @@ function numberValue(value) {
 
 function textValue(value) {
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? '');
+}
+
+function normalizePartyName(value) {
+  if (value === null || value === undefined) return '';
+  const text = String(value).trim();
+  if (!text) return '';
+
+  const compact = text.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (compact.includes('alqaryangroup') || compact.includes('alqaryangroupfortradingindustrycontracting')) {
+    return 'AQG';
+  }
+
+  return text;
+}
+
+function normalizeReportContent(report) {
+  if (!report || typeof report !== 'object') return report;
+
+  if (Array.isArray(report.rows)) {
+    report.rows = report.rows.map(row => {
+      if (!row || typeof row !== 'object') return row;
+      if ('party_name' in row) row.party_name = normalizePartyName(row.party_name);
+      if ('vendor_name' in row) row.vendor_name = normalizePartyName(row.vendor_name);
+      if ('seller_name' in row) row.seller_name = normalizePartyName(row.seller_name);
+      if ('seller' in row) row.seller = normalizePartyName(row.seller);
+      return row;
+    });
+  }
+
+  return report;
 }
 
 function readWorkbook(buffer) {
@@ -310,22 +340,25 @@ function liveFundPlanning(buffer) {
     ]);
     const advanceAmountPaidUsd = advanceValue !== undefined ? numberValue(advanceValue) : 0;
 
+    const partyAliasValue = pickValue(row, [
+      'Seller Name (Short)',
+      'Seller name (Short)',
+      'Seller Name (Shot)',
+      'Seller name (Shot)',
+      'Seller Name\r\n(Short)',
+      'Seller Name\r\n(Shot)',
+      'Seller Name',
+      'Party Name',
+      'Party',
+      'Party Name ',
+      'Part Name'
+    ]);
     const partyFromHeaderIndex = sampleHeader && sampleHeader[14] !== undefined ? row[sampleHeader[14]] : undefined;
-    const partyName = (partyFromHeaderIndex !== undefined && partyFromHeaderIndex !== null && String(partyFromHeaderIndex).trim() !== '')
-      ? String(partyFromHeaderIndex).trim()
-      : pickValue(row, [
-          'Seller Name (Short)',
-          'Seller name (Short)',
-          'Seller Name (Shot)',
-          'Seller name (Shot)',
-          'Seller Name\r\n(Short)',
-          'Seller Name\r\n(Shot)',
-          'Seller Name',
-          'Party Name',
-          'Party',
-          'Party Name ',
-          'Part Name'
-        ]);
+    const partyName = (partyAliasValue !== undefined && partyAliasValue !== null && String(partyAliasValue).trim() !== '')
+      ? String(partyAliasValue).trim()
+      : (partyFromHeaderIndex !== undefined && partyFromHeaderIndex !== null && String(partyFromHeaderIndex).trim() !== '')
+        ? String(partyFromHeaderIndex).trim()
+        : '';
     const composition = pickValue(row, ['COMPOSTION', 'Pruduct Name As per SO', 'Composition/Grade', 'Composition / Grade', 'Composition', 'Composition Grade', 'Grade', 'Product Name As per SO']);
     const entity = pickValue(row, ['Intity Name', 'Entity', 'Entity Name', 'Intity Name ']);
     const containerEta = pickValue(row, ['ETA', 'Container ETA', 'Cont ETA Date', 'ETA Date', 'Cont. ETA Date']);
@@ -348,7 +381,7 @@ function liveFundPlanning(buffer) {
       bl_no: pickValue(row, ['Last 6 Digit BL No.', 'Last 6 Digit BL No', 'Last 6 Digit BL. No.', 'BL No.', 'Last 6 Digit BL No. ']) || pickValue(row, ['BL Number', 'BL No']),
       order_status: pickValue(row, ['Order Status', 'Status', 'Order status']),
       so_no: pickValue(row, ['SO  No.', 'SO No.', 'Sales Order No.', 'SO No', 'SO Number', 'Sales Order No. ', 'SO no']),
-      party_name: partyName,
+      party_name: normalizePartyName(partyName),
       composition,
       entity,
       rate_as_per_so_usd: rateValue,
@@ -406,7 +439,7 @@ function liveOneView(buffer) {
     full_bl_no: textValue(row['BL No.']),
     order_status: row['Order Status'],
     entity: row['Intity Name'],
-    vendor_name: row['Vendor name'],
+    vendor_name: normalizePartyName(row['Vendor name']),
     product_name: row['Pruduct Name As per SO'],
     category: row.Category,
     no_of_containers: numberValue(row['Nos of Container']),
@@ -426,7 +459,7 @@ function liveShipmentCosting(buffer) {
     full_bl_no: row['BL No.'],
     bl_date: textValue(row['BL  Date']),
     so_no: row['SO  No.'],
-    vendor_name: row['Vendor name'],
+    vendor_name: normalizePartyName(row['Vendor name']),
     product_name: row['Pruduct Name As per SO'],
     category: row.Category,
     port_of_loading: row['Port of Loading'],
@@ -826,7 +859,8 @@ module.exports = {
   liveOneView,
   liveShipmentCosting,
   liveOverview,
-  buildLoginPage
+  buildLoginPage,
+  normalizePartyName
 };
 
 if (require.main === module) {

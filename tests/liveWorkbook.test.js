@@ -23,8 +23,9 @@ function downloadWorkbook(url) {
     const first = data.rows[0];
     assert.ok(first.bl_no, 'First row should include a BL number');
     assert.ok(first.order_status, 'First row should include an order status');
+    assert.ok(!/AL-QARYAN GROUP/i.test(String(first.party_name || '')), 'Expected short seller-name value rather than the long display name');
     assert.ok(Number(first.amount_usd) >= 0 || Number(first.amount_payable_inr) >= 0, 'Expected numeric financial values');
-    console.log(`LIVE_CHECK_OK rows=${data.rows.length} first_bl=${first.bl_no}`);
+    console.log(`LIVE_CHECK_OK rows=${data.rows.length} first_bl=${first.bl_no} party=${first.party_name}`);
   } catch (error) {
     console.error('LIVE_CHECK_FAILED');
     console.error(error.stack || error.message);
