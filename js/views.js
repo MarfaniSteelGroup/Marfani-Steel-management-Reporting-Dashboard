@@ -251,6 +251,12 @@ Views.fundPlanning = async function(stage){
             <th class="num">Total Amount required (INR)</th>
             <th>HSS</th>
             <th>Remarks</th>
+            <th>SIMS</th>
+            <th>Payment</th>
+            <th>BOE</th>
+            <th>Current Document</th>
+            <th>DO Payment Status</th>
+            <th>SO No.</th>
           </tr></thead>
           <tbody id="fpBody"></tbody>
         </table>
@@ -280,7 +286,7 @@ Views.fundPlanning = async function(stage){
     return `
       <tr class="total-row" style="font-weight:700; background: rgba(224,138,62,0.08);">
         <td>Total</td>
-        <td colspan="9"></td>
+        <td colspan="10"></td>
         <td class="num">${fmt.num(total.qty_kgs)}</td>
         <td></td>
         <td class="num">${fmt.inr(total.duty_approx_inr)}</td>
@@ -288,6 +294,11 @@ Views.fundPlanning = async function(stage){
         <td class="num">${fmt.usd(total.amount_usd)}</td>
         <td class="num">${fmt.inr(total.amount_payable_inr)}</td>
         <td class="num">${fmt.inr(total.total_required_inr)}</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
         <td></td>
         <td></td>
       </tr>
@@ -326,6 +337,12 @@ Views.fundPlanning = async function(stage){
         <td class="num">${fmt.inr(r.total_required_inr)}</td>
         <td>${esc(r.hss)}</td>
         <td class="wrap">${esc(r.remarks)}</td>
+        <td>${esc(r.sims)}</td>
+        <td>${esc(r.payment)}</td>
+        <td>${esc(r.boe || r.bo)}</td>
+        <td>${esc(r.current_document)}</td>
+        <td>${esc(r.do_payment_status)}</td>
+        <td>${esc(r.so_no)}</td>
       </tr>
     `;
     }).join('') + getSubtotalRow(filtered);
@@ -338,27 +355,33 @@ Views.fundPlanning = async function(stage){
     const printFont = '13.5px';
     const compactPadding = '5px';
     const pageTitle = document.querySelector('#pageTitle')?.textContent || 'Fund Planning';
-    const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18];
+    const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24];
     const widthMap = {
-      0: '34px',
-      1: '72px',
-      2: '78px',
-      3: '150px',
+      0: '36px',
+      1: '76px',
+      2: '90px',
+      3: '140px',
       4: '180px',
       5: '72px',
-      6: '52px',
+      6: '54px',
       7: '90px',
-      8: '90px',
-      9: '88px',
-      10: '74px',
+      8: '86px',
+      9: '90px',
+      10: '76px',
       11: '88px',
-      12: '92px',
-      13: '88px',
-      14: '90px',
-      15: '98px',
-      16: '104px',
-      17: '70px',
-      18: '160px'
+      12: '102px',
+      13: '90px',
+      14: '96px',
+      15: '110px',
+      16: '110px',
+      17: '110px',
+      18: '68px',
+      19: '170px',
+      20: '70px',
+      21: '72px',
+      22: '68px',
+      23: '100px',
+      24: '90px'
     };
     const clonedTable = table.cloneNode(true);
     clonedTable.style.fontSize = printFont;
