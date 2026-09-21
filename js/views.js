@@ -315,11 +315,34 @@ Views.fundPlanning = async function(stage){
     const printFont = '13.5px';
     const compactPadding = '5px';
     const pageTitle = document.querySelector('#pageTitle')?.textContent || 'Fund Planning';
-    const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17];
+    const visibleColumns = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];
+    const widthMap = {
+      0: '34px',
+      1: '72px',
+      2: '78px',
+      3: '150px',
+      4: '180px',
+      5: '72px',
+      6: '52px',
+      7: '90px',
+      8: '90px',
+      9: '88px',
+      10: '74px',
+      11: '88px',
+      12: '92px',
+      13: '88px',
+      14: '90px',
+      15: '98px',
+      16: '104px',
+      17: '90px',
+      18: '180px',
+      19: '82px'
+    };
     const clonedTable = table.cloneNode(true);
     clonedTable.style.fontSize = printFont;
     clonedTable.style.borderCollapse = 'collapse';
     clonedTable.style.lineHeight = '1.2';
+    clonedTable.style.tableLayout = 'fixed';
 
     const headerCells = Array.from(clonedTable.querySelectorAll('thead tr th'));
     headerCells.forEach((cell, index) => {
@@ -329,6 +352,8 @@ Views.fundPlanning = async function(stage){
         cell.style.fontSize = printFont;
         cell.style.padding = compactPadding;
         cell.style.lineHeight = '1.2';
+        cell.style.width = widthMap[index] || 'auto';
+        cell.style.whiteSpace = 'normal';
       }
     });
 
@@ -342,6 +367,9 @@ Views.fundPlanning = async function(stage){
           cell.style.fontSize = printFont;
           cell.style.padding = compactPadding;
           cell.style.lineHeight = '1.2';
+          cell.style.width = widthMap[index] || 'auto';
+          cell.style.whiteSpace = 'normal';
+          cell.style.verticalAlign = 'top';
         }
       });
     });
@@ -366,7 +394,7 @@ Views.fundPlanning = async function(stage){
     if (mode === 'pdf') {
       const printWindow = window.open('', '_blank', 'width=1200,height=900');
       if (!printWindow) return alert('Popup blocked. Please allow pop-ups to print as PDF.');
-      printWindow.document.write('<html><head><title>' + pageTitle + '</title><style>@page{size:A3 landscape;margin:8mm;} body{font-family:Arial,sans-serif;background:#fff;color:#111;padding:18px;font-size:13.5px;line-height:1.2;} table{width:100%;border-collapse:collapse;line-height:1.2;} th,td{border:1px solid #111;padding:5px;text-align:left;font-size:13.5px;line-height:1.2;} th{background:#f3f3f3;}</style></head><body>' + clonedTable.outerHTML + '</body></html>');
+      printWindow.document.write('<html><head><title>' + pageTitle + '</title><style>@page{size:A3 landscape;margin:8mm;} body{font-family:Arial,sans-serif;background:#fff;color:#111;padding:18px;font-size:13.5px;line-height:1.2;} table{width:100%;border-collapse:collapse;table-layout:fixed;line-height:1.2;} th,td{border:1px solid #111;padding:5px;text-align:left;font-size:13.5px;line-height:1.2;vertical-align:top;word-wrap:break-word;overflow-wrap:anywhere;} th{background:#f3f3f3;}</style></head><body>' + clonedTable.outerHTML + '</body></html>');
       printWindow.document.close();
       printWindow.focus();
       setTimeout(() => printWindow.print(), 500);
