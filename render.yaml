@@ -9,6 +9,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 18.20.0
+      - key: ENABLE_LIVE_WORKBOOK
+        value: "true"
       - key: LIVE_WORKBOOK_URL
         value: https://raw.githubusercontent.com/MarfaniSteelGroup/import-monitoring-data/main/Import%20Monitoring.xlsx.xlsm
       - key: DATABASE_URL
