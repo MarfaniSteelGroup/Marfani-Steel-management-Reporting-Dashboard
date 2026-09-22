@@ -12,7 +12,7 @@ services:
       - key: ENABLE_LIVE_WORKBOOK
         value: "true"
       - key: LIVE_WORKBOOK_URL
-        value: https://raw.githubusercontent.com/MarfaniSteelGroup/import-monitoring-data/main/Import%20Monitoring.xlsx.xlsm
+        value: https://www.dropbox.com/scl/fi/fiiy3o6coteasonzw49tu/New-Import-Monitoring.xlsx?rlkey=kml4r6k2dtcq9c0bjw7ambt6o&st=zrxjnwlq&dl=0
       - key: DATABASE_URL
         fromDatabase:
           name: marfani-users-db

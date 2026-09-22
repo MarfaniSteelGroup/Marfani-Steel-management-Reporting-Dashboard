@@ -12,9 +12,9 @@ Report Index:
 | One View – BL Tracker | 03 One View BL Wise Rpt |
 | Shipment Costing | 04 Shipment Costing Rpt |
 
-The data itself lives as static JSON files under `data/` (extracted once from
-the workbook), so the app has no database — it's a static dashboard served by
-a tiny Node/Express server.
+The dashboard reads the live workbook from Dropbox by default and keeps
+static JSON files under `data/` as a fallback. It is served by a tiny
+Node/Express server.
 
 ## Project structure
 
@@ -34,9 +34,31 @@ a tiny Node/Express server.
 
 ## Updating the data
 
-Whenever the workbook is refreshed, re-export the five JSON files in `data/`
-to match. Each file mirrors one worksheet's rows/totals — keep the same keys
-so `js/views.js` doesn't need to change.
+The live workbook URL can be overridden with `LIVE_WORKBOOK_URL`. Set
+`ENABLE_LIVE_WORKBOOK=false` to use the saved JSON files only. Each static file
+mirrors one worksheet's rows/totals and remains the fallback when the workbook
+cannot be downloaded.
+
+The configured SharePoint link must allow anonymous viewing/download (SharePoint
+permission: **Anyone with the link can view**) because the Node server cannot use
+your browser login session. Dropbox is also supported: create a shared link for
+the Excel file with **Anyone with the link can view**, then set
+`LIVE_WORKBOOK_URL` to that link. The server automatically changes Dropbox's
+`dl=0` link to a direct download link.
+
+For local use, place the project folder inside your Dropbox-synced folder if you
+want the code and saved JSON fallback files synchronized across computers. For
+Render or another hosted server, keep the project in Git and use the public
+Dropbox Excel link as `LIVE_WORKBOOK_URL`; the hosted server cannot read a local
+Dropbox folder on your PC.
+
+Example:
+
+```powershell
+$env:LIVE_WORKBOOK_URL = 'https://www.dropbox.com/scl/fi/<file-id>/New-Import-Monitoring.xlsx?rlkey=<key>&dl=0'
+$env:ENABLE_LIVE_WORKBOOK = 'true'
+npm start
+```
 
 ## Run locally
 
@@ -54,8 +76,8 @@ Run this once in PowerShell from the project folder:
 powershell -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1
 ```
 
-This installs a per-user Startup shortcut that starts the dashboard at each
-Windows logon without opening a console window. It serves the dashboard at
+This installs a per-user Task Scheduler logon task that starts the dashboard at
+each Windows logon without opening a console window. It serves the dashboard at
 `http://localhost:3000`.
 
 Or, since it's plain static HTML/CSS/JS, you can also just open `index.html`

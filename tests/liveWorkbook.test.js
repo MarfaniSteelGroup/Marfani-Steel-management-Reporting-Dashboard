@@ -1,18 +1,12 @@
 const assert = require('assert');
-const https = require('https');
 const { liveFundPlanning } = require('../server.js');
 
-const workbookUrl = 'https://raw.githubusercontent.com/MarfaniSteelGroup/import-monitoring-data/main/Import%20Monitoring.xlsx.xlsm';
+const workbookUrl = 'https://www.dropbox.com/scl/fi/fiiy3o6coteasonzw49tu/New-Import-Monitoring.xlsx?rlkey=kml4r6k2dtcq9c0bjw7ambt6o&st=zrxjnwlq&dl=1';
 
-function downloadWorkbook(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      const chunks = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => resolve(Buffer.concat(chunks)));
-      res.on('error', reject);
-    }).on('error', reject);
-  });
+async function downloadWorkbook(url) {
+  const response = await fetch(url, { redirect: 'follow' });
+  if (!response.ok) throw new Error(`Workbook download failed with HTTP ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
 }
 
 (async () => {
