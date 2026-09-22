@@ -472,7 +472,27 @@ function liveDailyFundOutflow(buffer) {
 }
 
 function liveOneView(buffer) {
-  const rows = liveRows(buffer, 'New Data', 2).map(row => ({
+  const workbook = readWorkbook(buffer);
+  const dedicatedSheet = workbook.SheetNames.find(name => String(name).trim().toLowerCase() === 'new data');
+  if (!dedicatedSheet) {
+    const rows = liveFundPlanning(buffer).rows.map(row => ({
+      bl_no: textValue(row.bl_no),
+      full_bl_no: textValue(row.bl_no),
+      order_status: row.order_status,
+      entity: row.entity,
+      vendor_name: normalizePartyName(row.party_name),
+      product_name: row.composition,
+      category: '',
+      no_of_containers: numberValue(row.no_of_cont),
+      shipment_status: '',
+      documents_status: row.current_document,
+      shipping_line: '',
+      cha_name: row.cha_name
+    }));
+    return { asOn: new Date().toISOString().slice(0, 10), rows };
+  }
+
+  const rows = liveRows(buffer, dedicatedSheet, 2).map(row => ({
     bl_no: textValue(row['Last 6 Digit BL No.']),
     full_bl_no: textValue(row['BL No.']),
     order_status: row['Order Status'],
@@ -490,7 +510,46 @@ function liveOneView(buffer) {
 }
 
 function liveShipmentCosting(buffer) {
-  const rows = liveRows(buffer, 'Shipmement Costing', 2).map(row => ({
+  const workbook = readWorkbook(buffer);
+  const dedicatedSheet = workbook.SheetNames.find(name => String(name).trim().toLowerCase() === 'shipmement costing');
+  if (!dedicatedSheet) {
+    const planning = liveFundPlanning(buffer);
+    const rows = planning.rows.map(row => ({
+      bl_no: textValue(row.bl_no),
+      order_status: row.order_status,
+      entity: row.entity,
+      full_bl_no: textValue(row.bl_no),
+      bl_date: '',
+      so_no: row.so_no,
+      vendor_name: normalizePartyName(row.party_name),
+      product_name: row.composition,
+      category: '',
+      port_of_loading: '',
+      port_of_discharge: '',
+      invoice_qty_mt: numberValue(row.qty_kgs) / 1000,
+      amount_paid_usd: numberValue(row.amount_usd),
+      duty_amount_inr: numberValue(row.duty_approx_inr),
+      total_be_amount_inr: numberValue(row.amount_payable_inr),
+      landing_cost_inr: 0,
+      landing_cost_per_kg_inr: 0,
+      detention_amount_inr: 0,
+      damage_claim_inr: 0,
+      shipment_status: '',
+      documents_status: row.current_document
+    }));
+    const totals = rows.reduce((total, row) => ({
+      duty_amount_inr: total.duty_amount_inr + row.duty_amount_inr,
+      total_be_amount_inr: total.total_be_amount_inr + row.total_be_amount_inr,
+      landing_cost_inr: total.landing_cost_inr,
+      detention_amount_inr: total.detention_amount_inr,
+      damage_claim_inr: total.damage_claim_inr,
+      qty: total.qty + row.invoice_qty_mt
+    }), { duty_amount_inr: 0, total_be_amount_inr: 0, landing_cost_inr: 0, detention_amount_inr: 0, damage_claim_inr: 0, qty: 0 });
+    totals.avg_landing_cost_per_kg = 0;
+    return { fy: '2025-26', asOn: new Date().toISOString().slice(0, 10), rows, totals };
+  }
+
+  const rows = liveRows(buffer, dedicatedSheet, 2).map(row => ({
     bl_no: textValue(row['Last 6 Digit BL No.']),
     order_status: row['Order Status'],
     entity: row['Intity Name'],
