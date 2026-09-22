@@ -42,7 +42,7 @@ function badge(s){
 
 const DataStore = (() => {
   const cache = {};
-  const CACHE_TTL_MS = 5 * 60 * 1000;
+  const CACHE_TTL_MS = 60 * 1000;
   async function load(name){
     if(cache[name] && Date.now() - cache[name].loadedAt < CACHE_TTL_MS) return cache[name].data;
     try {

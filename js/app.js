@@ -69,4 +69,4 @@ navigate(initial);
 setInterval(() => {
   const route = (window.location.hash || '#overview').replace('#','');
   navigate(route);
-}, 5 * 60 * 1000);
+}, 60 * 1000);
