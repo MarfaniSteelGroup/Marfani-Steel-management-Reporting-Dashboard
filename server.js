@@ -15,6 +15,8 @@ const DEFAULT_LIVE_WORKBOOK_URL = 'https://www.dropbox.com/scl/fi/fiiy3o6coteaso
 const configuredWorkbookUrl = (process.env.LIVE_WORKBOOK_URL || '').trim();
 const isLegacyWorkbookUrl = /sharepoint\.com|onedrive\.live\.com/i.test(configuredWorkbookUrl);
 const LIVE_WORKBOOK_URL = configuredWorkbookUrl && !isLegacyWorkbookUrl ? configuredWorkbookUrl : DEFAULT_LIVE_WORKBOOK_URL;
+const LOCAL_WORKBOOK_PATH = path.join(__dirname, 'data', 'New Import Monitoring.xlsx');
+const USE_LOCAL_WORKBOOK = String(process.env.USE_LOCAL_WORKBOOK || 'true').toLowerCase() !== 'false';
 const CONTAINER_CST_URL = LIVE_WORKBOOK_URL;
 const ENABLE_LIVE_WORKBOOK = String(process.env.ENABLE_LIVE_WORKBOOK || 'true').toLowerCase() !== 'false';
 
@@ -176,6 +178,11 @@ let liveDataCache = {};
 async function getWorkbookBuffer(forceRefresh = false) {
   if (!forceRefresh && workbookBufferCache) return workbookBufferCache;
   if (!forceRefresh && workbookBufferPromise) return workbookBufferPromise;
+
+  if (USE_LOCAL_WORKBOOK && fs.existsSync(LOCAL_WORKBOOK_PATH)) {
+    workbookBufferCache = fs.readFileSync(LOCAL_WORKBOOK_PATH);
+    return workbookBufferCache;
+  }
 
   workbookBufferPromise = (async () => {
     const candidates = getWorkbookDownloadCandidates(LIVE_WORKBOOK_URL);
