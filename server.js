@@ -13,7 +13,8 @@ const USERS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.jso
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
 const DEFAULT_LIVE_WORKBOOK_URL = 'https://www.dropbox.com/scl/fi/fiiy3o6coteasonzw49tu/New-Import-Monitoring.xlsx?rlkey=kml4r6k2dtcq9c0bjw7ambt6o&st=zrxjnwlq&dl=0';
 const configuredWorkbookUrl = (process.env.LIVE_WORKBOOK_URL || '').trim();
-const LIVE_WORKBOOK_URL = configuredWorkbookUrl || DEFAULT_LIVE_WORKBOOK_URL;
+const isLegacyWorkbookUrl = /sharepoint\.com|onedrive\.live\.com/i.test(configuredWorkbookUrl);
+const LIVE_WORKBOOK_URL = configuredWorkbookUrl && !isLegacyWorkbookUrl ? configuredWorkbookUrl : DEFAULT_LIVE_WORKBOOK_URL;
 const CONTAINER_CST_URL = LIVE_WORKBOOK_URL;
 const ENABLE_LIVE_WORKBOOK = String(process.env.ENABLE_LIVE_WORKBOOK || 'true').toLowerCase() !== 'false';
 
