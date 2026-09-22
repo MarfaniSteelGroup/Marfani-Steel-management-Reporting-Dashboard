@@ -46,6 +46,18 @@ npm start
 # open http://localhost:3000
 ```
 
+### Start automatically on Windows
+
+Run this once in PowerShell from the project folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-autostart.ps1
+```
+
+This installs a per-user Startup shortcut that starts the dashboard at each
+Windows logon without opening a console window. It serves the dashboard at
+`http://localhost:3000`.
+
 Or, since it's plain static HTML/CSS/JS, you can also just open `index.html`
 directly in a browser, or serve the folder with any static server (`npx serve .`).
 
