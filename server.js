@@ -867,7 +867,7 @@ app.get('/api/live-data/:name', async (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   try {
-    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const forceRefresh = Object.prototype.hasOwnProperty.call(req.query, 'refresh');
     if (!ENABLE_LIVE_WORKBOOK) {
       const fallback = loadStaticReport(req.params.name);
       res.setHeader('X-Data-Source', 'static-fallback');
