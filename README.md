@@ -80,6 +80,17 @@ This installs a per-user Task Scheduler logon task that starts the dashboard at
 each Windows logon without opening a console window. It serves the dashboard at
 `http://localhost:3000`.
 
+### Automatically publish workbook changes
+
+Install the five-minute workbook sync task once from PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-autosync.ps1
+```
+
+When `data/New Import Monitoring.xlsx` changes, the task commits only that file
+and pushes `main`. Render then deploys the updated workbook automatically.
+
 Or, since it's plain static HTML/CSS/JS, you can also just open `index.html`
 directly in a browser, or serve the folder with any static server (`npx serve .`).
 
