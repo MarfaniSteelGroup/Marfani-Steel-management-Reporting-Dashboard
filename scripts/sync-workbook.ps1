@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $project = Split-Path -Parent $PSScriptRoot
 $logFile = Join-Path $project 'data\workbook-sync.log'
-$userFile = Join-Path $project 'data\users.json'
+$userFile = Join-Path $project '.local-users.json'
 $syncTokenFile = Join-Path $project '.users-sync-token'
 $syncUrl = if ($env:USER_SYNC_URL) { $env:USER_SYNC_URL } else { 'https://dashboard.marfanisteel.com/api/users/sync' }
 

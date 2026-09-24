@@ -94,6 +94,12 @@ When any non-ignored file changes, the task commits the changes and pushes
 Windows user account, so GitHub authentication must already work for
 `git push` in this project (for example, with Git Credential Manager).
 
+The same task also pulls newly created users and password changes from the
+hosted dashboard into the local dashboard. Set `USER_SYNC_TOKEN` in the
+Render service to the value stored in the local `.users-sync-token` file.
+That token is ignored by Git and the sync endpoint returns data only over
+HTTPS with the matching token.
+
 Or, since it's plain static HTML/CSS/JS, you can also just open `index.html`
 directly in a browser, or serve the folder with any static server (`npx serve .`).
 

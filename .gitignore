@@ -4,3 +4,4 @@ node_modules/
 data/~$*.xlsx
 .env
 .users-sync-token
+.local-users.json

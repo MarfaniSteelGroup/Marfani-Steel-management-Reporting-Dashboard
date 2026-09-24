@@ -10,9 +10,11 @@ const XLSX = require('xlsx');
 const ADMIN_USERNAME = 'Admin';
 const ADMIN_PASSWORD = 'Marfani@12345';
 const AUTH_COOKIE = 'marfani_admin_session';
-const USERS_FILE = path.join(__dirname, 'data', 'users.json');
-const USERS = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+const DEFAULT_USERS_FILE = path.join(__dirname, 'data', 'users.json');
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
+const USERS_FILE = pool ? DEFAULT_USERS_FILE : path.join(__dirname, '.local-users.json');
+if (!pool && !fs.existsSync(USERS_FILE)) fs.copyFileSync(DEFAULT_USERS_FILE, USERS_FILE);
+const USERS = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
 const USER_SYNC_TOKEN = (process.env.USER_SYNC_TOKEN || '').trim();
 const DEFAULT_LIVE_WORKBOOK_URL = 'https://www.dropbox.com/scl/fi/fiiy3o6coteasonzw49tu/New-Import-Monitoring.xlsx?rlkey=kml4r6k2dtcq9c0bjw7ambt6o&st=zrxjnwlq&dl=0';
 const configuredWorkbookUrl = (process.env.LIVE_WORKBOOK_URL || '').trim();
@@ -31,13 +33,14 @@ function refreshLocalUsers() {
 }
 
 if (!pool) {
-  fs.watchFile(USERS_FILE, { interval: 1000 }, () => {
+  const localUserRefreshTimer = setInterval(() => {
     try {
       refreshLocalUsers();
     } catch (error) {
       console.error('Local user sync reload failed:', error.message);
     }
-  });
+  }, 1000);
+  localUserRefreshTimer.unref();
 }
 
 function normalizeWorkbookUrl(url) {
@@ -848,6 +851,7 @@ app.use((req, res, next) => {
     '/login',
     '/logout',
     '/api/session',
+    '/api/users/sync',
     '/api/live-data',
     '/api/report-data',
     '/data/',
