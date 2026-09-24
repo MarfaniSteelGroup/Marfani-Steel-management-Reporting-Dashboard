@@ -12,7 +12,17 @@ try {
     if ($syncToken) {
         $response = Invoke-RestMethod -Uri $syncUrl -Headers @{ 'X-User-Sync-Token' = $syncToken } -Method Get
         if (-not $response.users) { throw 'Hosted user sync returned no users.' }
-        $json = $response.users | ConvertTo-Json -Depth 10
+        $usersByName = [ordered]@{}
+        foreach ($account in $response.users) {
+            $usersByName[$account.username] = [ordered]@{
+                username = $account.username
+                display_name = $account.display_name
+                password = $account.password
+                role = $account.role
+                permissions = @($account.permissions)
+            }
+        }
+        $json = $usersByName | ConvertTo-Json -Depth 10
         $temporaryUserFile = "$userFile.tmp"
         Set-Content -Path $temporaryUserFile -Value "$json`n" -Encoding utf8
         Move-Item -Path $temporaryUserFile -Destination $userFile -Force
