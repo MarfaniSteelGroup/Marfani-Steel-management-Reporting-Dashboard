@@ -13,8 +13,14 @@ const AUTH_COOKIE = 'marfani_admin_session';
 const DEFAULT_USERS_FILE = path.join(__dirname, 'data', 'users.json');
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
 const USERS_FILE = pool ? DEFAULT_USERS_FILE : path.join(__dirname, '.local-users.json');
+
+function readUsersFile(filePath) {
+  const content = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
+  return JSON.parse(content);
+}
+
 if (!pool && !fs.existsSync(USERS_FILE)) fs.copyFileSync(DEFAULT_USERS_FILE, USERS_FILE);
-const USERS = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+const USERS = readUsersFile(USERS_FILE);
 const USER_SYNC_TOKEN = (process.env.USER_SYNC_TOKEN || '').trim();
 const DEFAULT_LIVE_WORKBOOK_URL = 'https://www.dropbox.com/scl/fi/fiiy3o6coteasonzw49tu/New-Import-Monitoring.xlsx?rlkey=kml4r6k2dtcq9c0bjw7ambt6o&st=zrxjnwlq&dl=0';
 const configuredWorkbookUrl = (process.env.LIVE_WORKBOOK_URL || '').trim();
@@ -27,7 +33,7 @@ const ENABLE_LIVE_WORKBOOK = String(process.env.ENABLE_LIVE_WORKBOOK || 'true').
 
 function refreshLocalUsers() {
   if (pool) return;
-  const latestUsers = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+  const latestUsers = readUsersFile(USERS_FILE);
   Object.keys(USERS).forEach(username => delete USERS[username]);
   Object.assign(USERS, latestUsers);
 }
