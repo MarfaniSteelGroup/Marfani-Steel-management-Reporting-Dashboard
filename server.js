@@ -134,6 +134,8 @@ async function saveUser(account) {
       VALUES ($1, $2, $3, $4, $5::jsonb)
       ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, display_name = EXCLUDED.display_name, role = EXCLUDED.role, permissions = EXCLUDED.permissions
     `, [account.username, account.password, account.display_name || account.username, account.role, JSON.stringify(account.permissions || [])]);
+    const saved = await pool.query('SELECT username FROM app_users WHERE username = $1', [account.username]);
+    if (saved.rowCount !== 1) throw new Error(`User ${account.username} was not persisted.`);
     return;
   }
   fs.writeFileSync(path.join(__dirname, 'data', 'users.json'), `${JSON.stringify(USERS, null, 2)}\n`);
@@ -954,6 +956,7 @@ app.get('/api/report-data/:name', (req, res) => {
 app.get('/api/users', async (req, res) => {
   const session = getSessionUser(req);
   if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
+  res.setHeader('Cache-Control', 'no-store');
   res.json(await listUsers());
 });
 
@@ -969,6 +972,10 @@ app.patch('/api/users/:username/permissions', async (req, res) => {
   const { entry, approval } = req.body || {};
   account.permissions = [entry ? 'entry' : '', approval ? 'approval' : ''].filter(Boolean);
   await saveUser({ username, ...account });
+  if (pool) {
+    const result = await pool.query('SELECT permissions FROM app_users WHERE username = $1', [username]);
+    account.permissions = result.rows[0]?.permissions || account.permissions;
+  }
   res.json({ username, role: account.role, permissions: account.permissions });
 });
 
@@ -982,10 +989,6 @@ app.post('/api/users', async (req, res) => {
   if (cleanName.length < 2 || cleanName.length > 80 || !/^[A-Za-z0-9_-]{3,32}$/.test(cleanUsername) || String(password || '').length < 8) {
     return res.status(400).json({ error: 'Enter a name, a login ID of 3-32 letters/numbers, and a password of at least 8 characters.' });
   }
-  if (USERS[cleanUsername] || (pool && (await pool.query('SELECT 1 FROM app_users WHERE username = $1', [cleanUsername])).rowCount)) {
-    return res.status(409).json({ error: 'That user already exists.' });
-  }
-
   const account = {
     username: cleanUsername,
     display_name: cleanName,
@@ -993,8 +996,24 @@ app.post('/api/users', async (req, res) => {
     role: 'viewer',
     permissions: [entry ? 'entry' : '', approval ? 'approval' : ''].filter(Boolean)
   };
-  USERS[cleanUsername] = account;
-  await saveUser(account);
+  if (pool) {
+    try {
+      await pool.query(`
+        INSERT INTO app_users (username, password, display_name, role, permissions)
+        VALUES ($1, $2, $3, $4, $5::jsonb)
+      `, [account.username, account.password, account.display_name, account.role, JSON.stringify(account.permissions)]);
+    } catch (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'That user already exists.' });
+      throw error;
+    }
+    const saved = await pool.query('SELECT username, display_name, role, permissions FROM app_users WHERE username = $1', [cleanUsername]);
+    if (saved.rowCount !== 1) throw new Error(`User ${cleanUsername} was not persisted.`);
+    USERS[cleanUsername] = { ...account };
+  } else {
+    if (USERS[cleanUsername]) return res.status(409).json({ error: 'That user already exists.' });
+    USERS[cleanUsername] = account;
+    await saveUser(account);
+  }
   res.status(201).json({ username: cleanUsername, display_name: cleanName, role: 'viewer', permissions: account.permissions });
 });
 
