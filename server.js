@@ -96,7 +96,7 @@ async function initializeUserStore() {
     await pool.query(`
       INSERT INTO app_users (username, password, display_name, role, permissions)
       VALUES ($1, $2, $3, $4, $5::jsonb)
-      ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, display_name = EXCLUDED.display_name, role = EXCLUDED.role, permissions = EXCLUDED.permissions
+      ON CONFLICT (username) DO NOTHING
     `, [username, account.password, account.display_name || username, account.role, JSON.stringify(account.permissions || [])]);
   }
   const result = await pool.query('SELECT username, password, display_name, role, permissions FROM app_users');
