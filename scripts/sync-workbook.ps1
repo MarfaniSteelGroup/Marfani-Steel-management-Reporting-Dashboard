@@ -24,7 +24,7 @@ try {
         }
         $json = $usersByName | ConvertTo-Json -Depth 10
         $temporaryUserFile = "$userFile.tmp"
-        Set-Content -Path $temporaryUserFile -Value "$json`n" -Encoding utf8
+        [System.IO.File]::WriteAllText($temporaryUserFile, "$json`n", [System.Text.UTF8Encoding]::new($false))
         Move-Item -Path $temporaryUserFile -Destination $userFile -Force
         Add-Content -Path $logFile -Value "$(Get-Date -Format o) pulled hosted users"
     }
