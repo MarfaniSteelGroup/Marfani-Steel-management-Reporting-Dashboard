@@ -2,9 +2,23 @@ $ErrorActionPreference = 'Stop'
 
 $project = Split-Path -Parent $PSScriptRoot
 $logFile = Join-Path $project 'data\workbook-sync.log'
+$userFile = Join-Path $project 'data\users.json'
+$syncTokenFile = Join-Path $project '.users-sync-token'
+$syncUrl = if ($env:USER_SYNC_URL) { $env:USER_SYNC_URL } else { 'https://dashboard.marfanisteel.com/api/users/sync' }
 
 Push-Location $project
 try {
+    $syncToken = if ($env:USER_SYNC_TOKEN) { $env:USER_SYNC_TOKEN } elseif (Test-Path $syncTokenFile) { (Get-Content $syncTokenFile -Raw).Trim() } else { '' }
+    if ($syncToken) {
+        $response = Invoke-RestMethod -Uri $syncUrl -Headers @{ 'X-User-Sync-Token' = $syncToken } -Method Get
+        if (-not $response.users) { throw 'Hosted user sync returned no users.' }
+        $json = $response.users | ConvertTo-Json -Depth 10
+        $temporaryUserFile = "$userFile.tmp"
+        Set-Content -Path $temporaryUserFile -Value "$json`n" -Encoding utf8
+        Move-Item -Path $temporaryUserFile -Destination $userFile -Force
+        Add-Content -Path $logFile -Value "$(Get-Date -Format o) pulled hosted users"
+    }
+
     # The repository ignore rules keep logs, dependencies, and local secrets out.
     $changes = git status --porcelain
     if (-not $changes) {

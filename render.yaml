@@ -19,6 +19,8 @@ services:
         fromDatabase:
           name: marfani-users-db
           property: connectionString
+      - key: USER_SYNC_TOKEN
+        sync: false
 
 databases:
   - name: marfani-users-db

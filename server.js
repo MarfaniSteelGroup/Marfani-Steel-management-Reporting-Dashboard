@@ -3,14 +3,17 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { Pool } = require('pg');
 const XLSX = require('xlsx');
 
 const ADMIN_USERNAME = 'Admin';
 const ADMIN_PASSWORD = 'Marfani@12345';
 const AUTH_COOKIE = 'marfani_admin_session';
-const USERS = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'users.json'), 'utf8'));
+const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+const USERS = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
+const USER_SYNC_TOKEN = (process.env.USER_SYNC_TOKEN || '').trim();
 const DEFAULT_LIVE_WORKBOOK_URL = 'https://www.dropbox.com/scl/fi/fiiy3o6coteasonzw49tu/New-Import-Monitoring.xlsx?rlkey=kml4r6k2dtcq9c0bjw7ambt6o&st=zrxjnwlq&dl=0';
 const configuredWorkbookUrl = (process.env.LIVE_WORKBOOK_URL || '').trim();
 const isLegacyWorkbookUrl = /sharepoint\.com|onedrive\.live\.com/i.test(configuredWorkbookUrl);
@@ -19,6 +22,23 @@ const LOCAL_WORKBOOK_PATH = path.join(__dirname, 'data', 'New Import Monitoring.
 const USE_LOCAL_WORKBOOK = String(process.env.USE_LOCAL_WORKBOOK || 'true').toLowerCase() !== 'false';
 const CONTAINER_CST_URL = LIVE_WORKBOOK_URL;
 const ENABLE_LIVE_WORKBOOK = String(process.env.ENABLE_LIVE_WORKBOOK || 'true').toLowerCase() !== 'false';
+
+function refreshLocalUsers() {
+  if (pool) return;
+  const latestUsers = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+  Object.keys(USERS).forEach(username => delete USERS[username]);
+  Object.assign(USERS, latestUsers);
+}
+
+if (!pool) {
+  fs.watchFile(USERS_FILE, { interval: 1000 }, () => {
+    try {
+      refreshLocalUsers();
+    } catch (error) {
+      console.error('Local user sync reload failed:', error.message);
+    }
+  });
+}
 
 function normalizeWorkbookUrl(url) {
   if (!url) return url;
@@ -120,6 +140,14 @@ async function listUsers() {
   if (!pool) return Object.entries(USERS).map(([username, account]) => ({ username, display_name: account.display_name || username, role: account.role, permissions: account.permissions || [] }));
   const result = await pool.query('SELECT username, display_name, role, permissions FROM app_users ORDER BY display_name, username');
   return result.rows;
+}
+
+function hasValidUserSyncToken(req) {
+  const suppliedToken = String(req.headers['x-user-sync-token'] || '');
+  if (!USER_SYNC_TOKEN || !suppliedToken) return false;
+  const expected = Buffer.from(USER_SYNC_TOKEN);
+  const supplied = Buffer.from(suppliedToken);
+  return expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied);
 }
 
 function requestBinaryUrl(workbookUrl, timeoutMs = 22000, seen = new Set()) {
@@ -838,6 +866,20 @@ app.get('/api/session', (req, res) => {
   const user = getSessionUser(req);
   if (!user) return res.status(401).json({ authenticated: false });
   res.json({ authenticated: true, username: user.username, display_name: user.display_name, role: user.role, permissions: user.permissions });
+});
+
+app.get('/api/users/sync', async (req, res) => {
+  if (!hasValidUserSyncToken(req)) return res.status(404).json({ error: 'Not found.' });
+  try {
+    const accounts = pool
+      ? (await pool.query('SELECT username, password, display_name, role, permissions FROM app_users ORDER BY username')).rows
+      : Object.entries(USERS).map(([username, account]) => ({ username, ...account }));
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ users: accounts });
+  } catch (error) {
+    console.error('User sync export failed:', error.message);
+    res.status(500).json({ error: 'User sync failed.' });
+  }
 });
 
 app.patch('/api/account/password', async (req, res) => {
