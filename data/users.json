@@ -32,5 +32,14 @@
     "permissions": [
       "entry"
     ]
+  },
+  "Aniket": {
+    "username": "Aniket",
+    "display_name": "Aniket Sontakke",
+    "password": "Magic@123@",
+    "role": "viewer",
+    "permissions": [
+      "entry"
+    ]
   }
 }

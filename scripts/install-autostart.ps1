@@ -5,12 +5,21 @@ $startup = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup
 $shortcutPath = Join-Path $startup 'Marfani Steel Reporting.lnk'
 $launcher = Join-Path $project 'scripts\start-dashboard-hidden.vbs'
 $taskName = 'Marfani Steel Reporting'
+$node = Get-Command node.exe -ErrorAction SilentlyContinue
+$nodeCandidates = @(
+	(Join-Path $env:ProgramFiles 'nodejs\node.exe'),
+	(Join-Path $env:LOCALAPPDATA 'Programs\nodejs\node.exe')
+)
+
+if (-not $node -and -not ($nodeCandidates | Where-Object { Test-Path $_ })) {
+	throw 'Node.js was not found. Install Node.js before installing the automatic dashboard startup task.'
+}
 
 # A logon task is more reliable than a Startup-folder shortcut because it keeps
 # the absolute launcher path and does not depend on the logon shell directory.
 $action = New-ScheduledTaskAction -Execute (Join-Path $env:WINDIR 'System32\wscript.exe') -Argument ('"' + $launcher + '"') -WorkingDirectory $project
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
 
 if (Test-Path $shortcutPath) {
