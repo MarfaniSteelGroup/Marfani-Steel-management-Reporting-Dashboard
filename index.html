@@ -434,7 +434,7 @@
               <label><input type="checkbox" data-right="entry" ${user.permissions.includes('entry') ? 'checked' : ''} ${user.role === 'admin' ? 'disabled' : ''}> Entry</label>
               <label><input type="checkbox" data-right="approval" ${user.permissions.includes('approval') ? 'checked' : ''} ${user.role === 'admin' ? 'disabled' : ''}> Approval</label>
             </div>
-            ${user.role === 'admin' ? '<span class="user-fixed-rights">Admin rights fixed</span>' : '<button class="save-user-rights" type="button">Save rights</button>'}
+            ${user.role === 'admin' ? '<span class="user-fixed-rights">Admin rights fixed</span>' : `<div class="user-admin-actions"><button class="save-user-rights" type="button">Save rights</button><button class="edit-user-profile" type="button">Edit name / ID</button><button class="reset-user-password" type="button">Reset password</button></div>`}
             <p class="rights-message" aria-live="polite"></p>
           </div>
         `).join('');
@@ -462,6 +462,68 @@
             message.className = 'rights-message success';
           } catch (error) {
             message.textContent = 'Rights can be saved on the deployed server.';
+            message.className = 'rights-message error';
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+      activeUsersList.querySelectorAll('.edit-user-profile').forEach(button => {
+        button.addEventListener('click', async () => {
+          const row = button.closest('.active-user');
+          const currentUsername = row.dataset.username;
+          const user = loadedUsers.find(account => account.username === currentUsername);
+          const displayName = prompt('Full name:', user.display_name || user.username);
+          if (displayName === null) return;
+          const username = prompt('Login ID:', user.username);
+          if (username === null) return;
+          const message = row.querySelector('.rights-message');
+          button.disabled = true;
+          try {
+            const response = await fetch(`/api/users/${encodeURIComponent(currentUsername)}`, {
+              method: 'PATCH',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ displayName, username: username.trim() })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Could not update user.');
+            user.display_name = result.display_name;
+            user.username = result.username;
+            row.dataset.username = result.username;
+            row.querySelector('.active-user-name strong').textContent = result.display_name;
+            row.querySelector('.active-user-id').textContent = `Login ID: ${result.username}`;
+            message.textContent = 'User details updated.';
+            message.className = 'rights-message success';
+          } catch (error) {
+            message.textContent = error.message;
+            message.className = 'rights-message error';
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+      activeUsersList.querySelectorAll('.reset-user-password').forEach(button => {
+        button.addEventListener('click', async () => {
+          const row = button.closest('.active-user');
+          const username = row.dataset.username;
+          const password = prompt('Enter a new password (at least 8 characters):');
+          if (password === null) return;
+          const message = row.querySelector('.rights-message');
+          button.disabled = true;
+          try {
+            const response = await fetch(`/api/users/${encodeURIComponent(username)}/password`, {
+              method: 'PATCH',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Could not reset password.');
+            message.textContent = result.message;
+            message.className = 'rights-message success';
+          } catch (error) {
+            message.textContent = error.message;
             message.className = 'rights-message error';
           } finally {
             button.disabled = false;

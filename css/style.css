@@ -342,6 +342,10 @@ body.regular-account .password-change-form{ max-width:620px; margin:24px auto 0;
 .save-user-rights{ margin-top:8px; padding:5px 8px; border:1px solid var(--line); border-radius:var(--radius-s); background:transparent; color:var(--amber); cursor:pointer; font:10px var(--font-mono); }
 .save-user-rights:hover{ background:var(--hull-2); }
 .save-user-rights:disabled{ opacity:.55; cursor:wait; }
+.user-admin-actions{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.user-admin-actions button{ padding:5px 8px; border:1px solid var(--line); border-radius:var(--radius-s); background:transparent; color:var(--amber); cursor:pointer; font:10px var(--font-mono); }
+.user-admin-actions button:hover{ background:var(--hull-2); }
+.user-admin-actions button:disabled{ opacity:.55; cursor:wait; }
 .user-fixed-rights{ display:block; margin-top:8px; color:var(--green); font:9px var(--font-mono); }
 .rights-message{ min-height:13px; margin:6px 0 0; font-size:10px; }
 .rights-message.success{ color:var(--green); }

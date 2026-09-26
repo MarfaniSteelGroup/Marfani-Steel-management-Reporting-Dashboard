@@ -966,6 +966,65 @@ app.get('/api/users', async (req, res) => {
   res.json(await listUsers());
 });
 
+app.patch('/api/users/:username', async (req, res) => {
+  const session = getSessionUser(req);
+  if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
+
+  const currentUsername = req.params.username;
+  const account = USERS[currentUsername];
+  if (!account) return res.status(404).json({ error: 'User not found.' });
+  if (account.role === 'admin') return res.status(400).json({ error: 'Admin accounts cannot be edited.' });
+
+  const displayName = String(req.body?.displayName || '').trim();
+  const username = String(req.body?.username || '').trim();
+  if (displayName.length < 2 || displayName.length > 80 || !/^[A-Za-z0-9_-]{3,32}$/.test(username)) {
+    return res.status(400).json({ error: 'Enter a name and a login ID of 3-32 letters, numbers, underscores, or hyphens.' });
+  }
+  if (username !== currentUsername && USERS[username]) return res.status(409).json({ error: 'That user already exists.' });
+
+  if (pool) {
+    try {
+      const result = await pool.query(
+        'UPDATE app_users SET username = $1, display_name = $2 WHERE username = $3 AND role <> $4',
+        [username, displayName, currentUsername, 'admin']
+      );
+      if (!result.rowCount) return res.status(404).json({ error: 'User not found.' });
+    } catch (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'That user already exists.' });
+      throw error;
+    }
+  }
+
+  delete USERS[currentUsername];
+  account.display_name = displayName;
+  USERS[username] = account;
+  if (!pool) await saveUser({ username, ...account });
+  res.json({ username, display_name: displayName });
+});
+
+app.patch('/api/users/:username/password', async (req, res) => {
+  const session = getSessionUser(req);
+  if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
+
+  const username = req.params.username;
+  const account = USERS[username];
+  if (!account) return res.status(404).json({ error: 'User not found.' });
+  if (account.role === 'admin') return res.status(400).json({ error: 'Admin passwords must be changed by the account owner.' });
+
+  const password = String(req.body?.password || '');
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  if (pool) {
+    const result = await pool.query(
+      'UPDATE app_users SET password = $1 WHERE username = $2 AND role <> $3',
+      [password, username, 'admin']
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'User not found.' });
+  }
+  account.password = password;
+  if (!pool) await saveUser({ username, ...account });
+  res.json({ message: 'Password reset successfully.' });
+});
+
 app.patch('/api/users/:username/permissions', async (req, res) => {
   const session = getSessionUser(req);
   if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });

@@ -5,6 +5,7 @@ $logFile = Join-Path $project 'data\workbook-sync.log'
 $userFile = Join-Path $project '.local-users.json'
 $syncTokenFile = Join-Path $project '.users-sync-token'
 $syncUrl = if ($env:USER_SYNC_URL) { $env:USER_SYNC_URL } else { 'https://dashboard.marfanisteel.com/api/users/sync' }
+$publishPaths = @('index.html', 'css', 'js', 'server.js', 'package.json', 'package-lock.json', 'README.md', 'render.yaml', 'scripts', 'tests')
 
 Push-Location $project
 try {
@@ -29,15 +30,14 @@ try {
         Add-Content -Path $logFile -Value "$(Get-Date -Format o) pulled hosted users"
     }
 
-    # The repository ignore rules keep logs, dependencies, and local secrets out.
-    $changes = git status --porcelain
+    $changes = git status --porcelain -- $publishPaths
     if (-not $changes) {
         exit 0
     }
 
-    git add --all
+    git add --all -- $publishPaths
     $message = "Sync local dashboard changes $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-    git commit --message $message | Out-Null
+    git commit --only --message $message -- $publishPaths | Out-Null
     git push origin main | Out-Null
     Add-Content -Path $logFile -Value "$(Get-Date -Format o) pushed dashboard changes"
 } catch {

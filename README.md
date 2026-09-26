@@ -88,9 +88,12 @@ Install the five-minute sync task once from PowerShell:
 powershell -ExecutionPolicy Bypass -File .\scripts\install-autosync.ps1
 ```
 
-When any non-ignored file changes, the task commits the changes and pushes
-`main` to GitHub. Render then automatically deploys the new commit because
-`render.yaml` uses `autoDeployTrigger: commit`. The task runs under your
+The task runs every five minutes and at Windows sign-in. It pulls hosted users
+into the ignored `.local-users.json`, then commits and pushes application code,
+configuration, documentation, and tests to `main`. It deliberately excludes
+`data/`, so workbooks, report exports, and tracked user records are not sent to
+GitHub by the scheduled task. Render automatically deploys each pushed commit
+because `render.yaml` uses `autoDeployTrigger: commit`. The task runs under your
 Windows user account, so GitHub authentication must already work for
 `git push` in this project (for example, with Git Credential Manager).
 
