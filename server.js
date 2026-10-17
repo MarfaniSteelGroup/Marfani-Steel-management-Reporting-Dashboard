@@ -30,6 +30,7 @@ const LOCAL_WORKBOOK_PATH = path.join(__dirname, 'data', 'New Import Monitoring.
 const USE_LOCAL_WORKBOOK = String(process.env.USE_LOCAL_WORKBOOK || 'true').toLowerCase() !== 'false';
 const CONTAINER_CST_URL = LIVE_WORKBOOK_URL;
 const ENABLE_LIVE_WORKBOOK = String(process.env.ENABLE_LIVE_WORKBOOK || 'true').toLowerCase() !== 'false';
+const WORKBOOK_CACHE_TTL_MS = 300000;
 
 function refreshLocalUsers() {
   if (pool) return;
@@ -212,14 +213,22 @@ function requestBinaryUrl(workbookUrl, timeoutMs = 22000, seen = new Set()) {
 
 let workbookBufferCache = null;
 let workbookBufferPromise = null;
+let workbookBufferCachedAt = 0;
+let localWorkbookCachedMtimeMs = null;
 let liveDataCache = {};
 
 async function getWorkbookBuffer(forceRefresh = false) {
-  if (!forceRefresh && workbookBufferCache) return workbookBufferCache;
+  const hasLocalWorkbook = USE_LOCAL_WORKBOOK && fs.existsSync(LOCAL_WORKBOOK_PATH);
+  const localWorkbookMtimeMs = hasLocalWorkbook ? fs.statSync(LOCAL_WORKBOOK_PATH).mtimeMs : null;
+  const localWorkbookUnchanged = !hasLocalWorkbook || localWorkbookMtimeMs === localWorkbookCachedMtimeMs;
+  const cacheIsFresh = workbookBufferCache && Date.now() - workbookBufferCachedAt < WORKBOOK_CACHE_TTL_MS;
+  if (!forceRefresh && cacheIsFresh && localWorkbookUnchanged) return workbookBufferCache;
   if (!forceRefresh && workbookBufferPromise) return workbookBufferPromise;
 
-  if (USE_LOCAL_WORKBOOK && fs.existsSync(LOCAL_WORKBOOK_PATH)) {
+  if (hasLocalWorkbook) {
     workbookBufferCache = fs.readFileSync(LOCAL_WORKBOOK_PATH);
+    workbookBufferCachedAt = Date.now();
+    localWorkbookCachedMtimeMs = localWorkbookMtimeMs;
     return workbookBufferCache;
   }
 
@@ -242,6 +251,8 @@ async function getWorkbookBuffer(forceRefresh = false) {
         }
 
         workbookBufferCache = buffer;
+  workbookBufferCachedAt = Date.now();
+  localWorkbookCachedMtimeMs = null;
         return buffer;
       } catch (error) {
         lastError = error;
@@ -671,7 +682,7 @@ async function getLiveData(name, options = {}) {
   const cached = liveDataCache[cacheKey];
   const now = Date.now();
 
-  if (!forceRefresh && cached && now - cached.fetchedAt < 300000) {
+  if (!forceRefresh && cached && now - cached.fetchedAt < WORKBOOK_CACHE_TTL_MS) {
     return cached.data;
   }
 

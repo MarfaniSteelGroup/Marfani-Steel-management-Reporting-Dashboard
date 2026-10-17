@@ -97,6 +97,12 @@ because `render.yaml` uses `autoDeployTrigger: commit`. The task runs under your
 Windows user account, so GitHub authentication must already work for
 `git push` in this project (for example, with Git Credential Manager).
 
+Workbook data refreshes independently of Git: the local server reloads the
+Dropbox-synced workbook when its file changes, and Render downloads the public
+Dropbox workbook and refreshes its cache every five minutes. A hosted-user sync
+failure is logged as a warning and does not block code deployment; Git push
+failures are logged as errors.
+
 The same task also pulls newly created users and password changes from the
 hosted dashboard into the local dashboard. Set `USER_SYNC_TOKEN` in the
 Render service to the value stored in the local `.users-sync-token` file.
