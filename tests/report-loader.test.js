@@ -7,11 +7,13 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '..', 'js', 'utils.js'), 'utf8');
 
 test('DataStore falls back to the API-backed static JSON route when live fetch fails', async () => {
+  const requestedUrls = [];
   const context = {
     window: {},
     console,
     Date,
     fetch: async (url) => {
+      requestedUrls.push(String(url));
       if (String(url).startsWith('/api/live-data/')) {
         throw new Error('live fetch failed');
       }
@@ -47,4 +49,8 @@ test('DataStore falls back to the API-backed static JSON route when live fetch f
   const data = await DataStore.load('consolidated_mis');
   assert.equal(data.asOn, '2026-09-21');
   assert.equal(data.portfolio_snapshot.total_bl_records, 10);
+  assert.deepEqual(requestedUrls, [
+    '/api/live-data/consolidated_mis',
+    '/api/report-data/consolidated_mis'
+  ]);
 });

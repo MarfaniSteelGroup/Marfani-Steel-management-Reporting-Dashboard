@@ -102,6 +102,8 @@ Dropbox-synced workbook when its file changes, and Render downloads the public
 Dropbox workbook and refreshes its cache every five minutes. A hosted-user sync
 failure is logged as a warning and does not block code deployment; Git push
 failures are logged as errors.
+The live worksheet parser reads up to 1,000 rows to ignore the workbook's
+formatting-only range extending to Excel's maximum row.
 
 The same task also pulls newly created users and password changes from the
 hosted dashboard into the local dashboard. Set `USER_SYNC_TOKEN` in the

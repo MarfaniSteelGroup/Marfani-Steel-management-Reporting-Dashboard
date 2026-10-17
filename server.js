@@ -31,6 +31,7 @@ const USE_LOCAL_WORKBOOK = String(process.env.USE_LOCAL_WORKBOOK || 'true').toLo
 const CONTAINER_CST_URL = LIVE_WORKBOOK_URL;
 const ENABLE_LIVE_WORKBOOK = String(process.env.ENABLE_LIVE_WORKBOOK || 'true').toLowerCase() !== 'false';
 const WORKBOOK_CACHE_TTL_MS = 300000;
+const WORKBOOK_MAX_ROWS = 1000;
 
 function refreshLocalUsers() {
   if (pool) return;
@@ -337,8 +338,15 @@ function normalizeReportContent(report) {
   return report;
 }
 
+const parsedWorkbookCache = new WeakMap();
+
 function readWorkbook(buffer) {
-  return XLSX.read(buffer, { type: 'buffer', cellDates: true, dense: true, raw: false });
+  let workbook = parsedWorkbookCache.get(buffer);
+  if (!workbook) {
+    workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true, dense: true, raw: false, sheetRows: WORKBOOK_MAX_ROWS });
+    parsedWorkbookCache.set(buffer, workbook);
+  }
+  return workbook;
 }
 
 function liveRows(buffer, sheetName, headerRow) {
@@ -389,7 +397,7 @@ function findWorkbookSheet(workbook, candidates) {
   return workbook.SheetNames[0] || null;
 }
 
-function liveFundPlanning(buffer) {
+function buildLiveFundPlanning(buffer) {
   const workbook = readWorkbook(buffer);
   const sheetName = findWorkbookSheet(workbook, ['Fund Planning Report', 'Fund Planning', 'Compele Data Sheet', 'Complete Data Sheet', 'Complete Data']);
   if (!sheetName) {
@@ -528,7 +536,7 @@ function liveDailyFundOutflow(buffer) {
   return { asOn: new Date().toISOString().slice(0, 10), currency: 'INR', rows, total: rows.reduce((sum, row) => sum + row.amount, 0) };
 }
 
-function liveOneView(buffer) {
+function buildLiveOneView(buffer) {
   const workbook = readWorkbook(buffer);
   const dedicatedSheet = workbook.SheetNames.find(name => String(name).trim().toLowerCase() === 'new data');
   if (!dedicatedSheet) {
@@ -566,7 +574,7 @@ function liveOneView(buffer) {
   return { asOn: new Date().toISOString().slice(0, 10), rows };
 }
 
-function liveShipmentCosting(buffer) {
+function buildLiveShipmentCosting(buffer) {
   const workbook = readWorkbook(buffer);
   const dedicatedSheet = workbook.SheetNames.find(name => String(name).trim().toLowerCase() === 'shipmement costing');
   if (!dedicatedSheet) {
@@ -639,6 +647,30 @@ function liveShipmentCosting(buffer) {
   }), { duty_amount_inr: 0, total_be_amount_inr: 0, landing_cost_inr: 0, detention_amount_inr: 0, damage_claim_inr: 0, qty: 0 });
   totals.avg_landing_cost_per_kg = totals.qty ? totals.landing_cost_inr / (totals.qty * 1000) : 0;
   return { fy: '2025-26', asOn: new Date().toISOString().slice(0, 10), rows, totals };
+}
+
+const mappedReportCache = new WeakMap();
+
+function getMappedReport(buffer, name, build) {
+  let reports = mappedReportCache.get(buffer);
+  if (!reports) {
+    reports = new Map();
+    mappedReportCache.set(buffer, reports);
+  }
+  if (!reports.has(name)) reports.set(name, build());
+  return reports.get(name);
+}
+
+function liveFundPlanning(buffer) {
+  return getMappedReport(buffer, 'fund_planning', () => buildLiveFundPlanning(buffer));
+}
+
+function liveOneView(buffer) {
+  return getMappedReport(buffer, 'one_view', () => buildLiveOneView(buffer));
+}
+
+function liveShipmentCosting(buffer) {
+  return getMappedReport(buffer, 'shipment_costing', () => buildLiveShipmentCosting(buffer));
 }
 
 function liveOverview(buffer) {

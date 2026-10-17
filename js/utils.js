@@ -46,7 +46,7 @@ const DataStore = (() => {
   async function load(name){
     if(cache[name] && Date.now() - cache[name].loadedAt < CACHE_TTL_MS) return cache[name].data;
     try {
-      const live = await fetch(`/api/live-data/${name}?refresh=${Date.now()}`, { cache: 'no-store' });
+      const live = await fetch(`/api/live-data/${name}`, { cache: 'no-store' });
       if(live.ok){
         const json = await live.json();
         window.dashboardDataSource = live.headers.get('x-data-source') || 'live-excel';
