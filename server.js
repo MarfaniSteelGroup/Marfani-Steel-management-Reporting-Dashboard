@@ -30,9 +30,10 @@ const LOCAL_WORKBOOK_PATH = path.join(__dirname, 'data', 'New Import Monitoring.
 const IS_RENDER = String(process.env.RENDER || '').toLowerCase() === 'true';
 const USE_LOCAL_WORKBOOK = !IS_RENDER && String(process.env.USE_LOCAL_WORKBOOK || 'true').toLowerCase() !== 'false';
 const CONTAINER_CST_URL = LIVE_WORKBOOK_URL;
-const ENABLE_LIVE_WORKBOOK = String(process.env.ENABLE_LIVE_WORKBOOK || 'true').toLowerCase() !== 'false';
+const ENABLE_LIVE_WORKBOOK = !IS_RENDER && String(process.env.ENABLE_LIVE_WORKBOOK || 'true').toLowerCase() !== 'false';
 const WORKBOOK_CACHE_TTL_MS = 300000;
 const WORKBOOK_MAX_ROWS = 1000;
+const REPORT_NAMES = ['consolidated_mis', 'daily_fund_outflow', 'fund_planning', 'one_view', 'shipment_costing'];
 
 function refreshLocalUsers() {
   if (pool) return;
@@ -121,6 +122,13 @@ async function initializeUserStore() {
       display_name VARCHAR(80) NOT NULL DEFAULT '',
       role VARCHAR(20) NOT NULL,
       permissions JSONB NOT NULL DEFAULT '[]'::jsonb
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS report_snapshots (
+      report_name VARCHAR(40) PRIMARY KEY,
+      payload JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
   await pool.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS display_name VARCHAR(80) NOT NULL DEFAULT ''`);
@@ -847,7 +855,7 @@ function buildLoginPage(errorMessage = '') {
 }
 
 app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 function getSessionUser(req) {
   const cookieHeader = req.headers.cookie || '';
@@ -904,6 +912,7 @@ app.use((req, res, next) => {
     '/logout',
     '/api/session',
     '/api/users/sync',
+    '/api/reports/sync',
     '/api/live-data',
     '/api/report-data',
     '/data/',
@@ -935,6 +944,42 @@ app.get('/api/users/sync', async (req, res) => {
   } catch (error) {
     console.error('User sync export failed:', error.message);
     res.status(500).json({ error: 'User sync failed.' });
+  }
+});
+
+app.post('/api/reports/sync', async (req, res) => {
+  if (!hasValidUserSyncToken(req)) return res.status(404).json({ error: 'Not found.' });
+  if (!pool) return res.status(503).json({ error: 'Hosted report storage is unavailable.' });
+
+  const reports = req.body?.reports;
+  const reportNames = reports && typeof reports === 'object' && !Array.isArray(reports) ? Object.keys(reports) : [];
+  if (reportNames.length !== REPORT_NAMES.length || REPORT_NAMES.some(name => !Object.hasOwn(reports || {}, name))) {
+    return res.status(400).json({ error: 'The report payload is incomplete.' });
+  }
+  if (REPORT_NAMES.some(name => !reports[name] || typeof reports[name] !== 'object' || Array.isArray(reports[name]))) {
+    return res.status(400).json({ error: 'Each report must be a JSON object.' });
+  }
+
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    for (const reportName of REPORT_NAMES) {
+      await client.query(`
+        INSERT INTO report_snapshots (report_name, payload, updated_at)
+        VALUES ($1, $2::jsonb, NOW())
+        ON CONFLICT (report_name) DO UPDATE SET payload = EXCLUDED.payload, updated_at = EXCLUDED.updated_at
+      `, [reportName, JSON.stringify(reports[reportName])]);
+    }
+    await client.query('COMMIT');
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ synced: REPORT_NAMES });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    console.error('Report sync import failed:', error.message);
+    res.status(500).json({ error: 'Report sync failed.' });
+  } finally {
+    if (client) client.release();
   }
 });
 
@@ -972,6 +1017,13 @@ app.get('/api/live-data/:name', async (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   try {
+    if (pool) {
+      const snapshot = await pool.query('SELECT payload FROM report_snapshots WHERE report_name = $1', [req.params.name]);
+      if (snapshot.rowCount) {
+        res.setHeader('X-Data-Source', 'synced-postgres');
+        return res.json(normalizeReportContent(snapshot.rows[0].payload));
+      }
+    }
     const forceRefresh = Object.prototype.hasOwnProperty.call(req.query, 'refresh');
     if (!ENABLE_LIVE_WORKBOOK) {
       const fallback = loadStaticReport(req.params.name);

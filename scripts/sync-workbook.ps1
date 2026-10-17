@@ -34,9 +34,22 @@ try {
         }
     }
 
+    if ($syncToken) {
+        try {
+            $nodePath = (Get-Command node.exe -ErrorAction Stop).Source
+            $reportSyncScript = Join-Path $PSScriptRoot 'sync-report-data.js'
+            & $nodePath $reportSyncScript
+            if ($LASTEXITCODE -ne 0) { throw "Report sync script exited with code $LASTEXITCODE." }
+            Add-Content -Path $logFile -Value "$(Get-Date -Format o) synced hosted report snapshots"
+        } catch {
+            Add-Content -Path $logFile -Value "$(Get-Date -Format o) WARNING Report snapshot sync failed; continuing with code sync: $($_.Exception.Message)"
+        }
+    }
+
     $changes = git status --porcelain -- $publishPaths
     if ($LASTEXITCODE -ne 0) { throw 'git status failed while checking for dashboard changes.' }
     if (-not $changes) {
+        Add-Content -Path $logFile -Value "$(Get-Date -Format o) no publishable dashboard changes"
         exit 0
     }
 

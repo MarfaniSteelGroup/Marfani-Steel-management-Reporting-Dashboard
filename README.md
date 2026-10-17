@@ -89,21 +89,23 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install-autosync.ps1
 ```
 
 The task runs every five minutes and at Windows sign-in. It pulls hosted users
-into the ignored `.local-users.json`, then commits and pushes application code,
-configuration, documentation, and tests to `main`. It deliberately excludes
-`data/`, so workbooks, report exports, and tracked user records are not sent to
-GitHub by the scheduled task. Render automatically deploys each pushed commit
-because `render.yaml` uses `autoDeployTrigger: commit`. The task runs under your
-Windows user account, so GitHub authentication must already work for
-`git push` in this project (for example, with Git Credential Manager).
+into the ignored `.local-users.json` and uploads parsed report snapshots to the
+hosted PostgreSQL database using the sync token. It commits and pushes only
+application code, configuration, documentation, and tests to `main`; it
+deliberately excludes `data/`, so workbook and report values are not published
+to the public GitHub repository. Render automatically deploys each pushed
+commit because `render.yaml` uses `autoDeployTrigger: commit`. The task runs
+under your Windows user account, so GitHub authentication must already work
+for `git push` in this project (for example, with Git Credential Manager).
 
-Workbook data refreshes independently of Git: the local server reloads the
-Dropbox-synced workbook when its file changes, and Render downloads the public
-Dropbox workbook and refreshes its cache every five minutes. A hosted-user sync
-failure is logged as a warning and does not block code deployment; Git push
-failures are logged as errors.
-The live worksheet parser reads up to 1,000 rows to ignore the workbook's
-formatting-only range extending to Excel's maximum row.
+The local server reloads the Dropbox-synced workbook when its file changes.
+The scheduled task refreshes hosted report snapshots every five minutes, and
+Render serves those snapshots from PostgreSQL without parsing the large Excel
+file. Hosted-user or report-sync failures are logged as warnings and do not
+block code deployment; Git push failures are logged as errors. The live parser
+reads up to 1,000 worksheet rows to ignore Excel's formatting-only range. Daily
+Fund Outflow remains on its static fallback until its source sheet is included
+in the workbook.
 
 The same task also pulls newly created users and password changes from the
 hosted dashboard into the local dashboard. Set `USER_SYNC_TOKEN` in the
