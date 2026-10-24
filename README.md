@@ -127,6 +127,26 @@ git remote add origin https://github.com/<your-username>/<your-repo>.git
 git push -u origin main
 ```
 
+## Deploy on DigitalOcean (App Platform)
+
+1. Log in to [cloud.digitalocean.com](https://cloud.digitalocean.com).
+2. Click **Create** (top right) → **Apps** (App Platform).
+3. Under **Service Provider**, select **GitHub** and choose the repository:
+   - **Repository:** `MarfaniSteelGroup/Marfani-Steel-management-Reporting-Dashboard`
+   - **Branch:** `main`
+   - Check **Autodeploy code changes**.
+4. DigitalOcean will automatically detect the configuration from [.do/app.yaml](file:///.do/app.yaml) or Node.js settings:
+   - **Build Command:** `npm install`
+   - **Run Command:** `npm start`
+   - **HTTP Port:** `3000`
+5. Under **Environment Variables**, you can configure:
+   - `LIVE_WORKBOOK_URL`: Your Dropbox direct download link.
+   - `DATABASE_URL`: (Optional) PostgreSQL database connection string if using managed PostgreSQL.
+   - `USER_SYNC_TOKEN`: (Optional) Sync token matching `.users-sync-token`.
+6. Choose the plan (the Basic $5/mo or starter tier is sufficient) and click **Create Resources**.
+7. DigitalOcean will build the app and assign a live HTTPS URL (e.g., `https://marfani-steel-dashboard-xxxx.ondigitalocean.app`).
+8. You can also attach your custom domain (e.g., `dashboard.marfanisteel.com`) under **Settings → Domains**.
+
 ## Deploy on Render
 
 1. Go to [render.com](https://render.com) → **New +** → **Web Service**.
@@ -139,13 +159,3 @@ git push -u origin main
    (e.g. `https://marfani-steels-reporting-deck.onrender.com`).
 
 Every push to `main` will auto-redeploy.
-
-### Alternative: Static Site on Render
-
-Since there's no backend logic, you can also deploy this as a **Static Site**
-on Render instead of a Web Service — same repo, but set:
-- **Build Command:** *(leave blank)*
-- **Publish Directory:** `.`
-
-Either option works; the Web Service option is a slightly better fit if you
-later want to add live API endpoints instead of static JSON.

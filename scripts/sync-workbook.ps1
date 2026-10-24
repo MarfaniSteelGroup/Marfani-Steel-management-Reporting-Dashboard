@@ -5,7 +5,7 @@ $logFile = Join-Path $project 'data\workbook-sync.log'
 $userFile = Join-Path $project '.local-users.json'
 $syncTokenFile = Join-Path $project '.users-sync-token'
 $syncUrl = if ($env:USER_SYNC_URL) { $env:USER_SYNC_URL } else { 'https://dashboard.marfanisteel.com/api/users/sync' }
-$publishPaths = @('index.html', 'css', 'js', 'server.js', 'package.json', 'package-lock.json', 'README.md', 'render.yaml', 'scripts', 'tests')
+$publishPaths = @('index.html', 'css', 'js', 'server.js', 'package.json', 'package-lock.json', 'README.md', 'render.yaml', '.do', 'Dockerfile', '.dockerignore', 'scripts', 'tests')
 
 Push-Location $project
 try {
