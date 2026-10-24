@@ -755,14 +755,14 @@ function buildLoginPage(errorMessage = '') {
   <title>Marfani Steel Group User Login</title>
   <style>
     :root {
-      --bg: #12161b;
-      --panel: #181d24;
-      --panel-border: #323d48;
-      --ink: #eef0f2;
-      --muted: #8b95a1;
-      --amber: #e08a3e;
-      --amber-soft: rgba(224,138,62,0.12);
-      --red: #cc5f56;
+      --bg: #0a121e;
+      --panel: #101c2e;
+      --panel-border: #172a3e;
+      --ink: #f8fafc;
+      --muted: #8ea5bd;
+      --amber: #d99a57;
+      --amber-soft: rgba(217,154,87,0.12);
+      --red: #db7770;
     }
     * { box-sizing: border-box; }
     body {
@@ -771,8 +771,12 @@ function buildLoginPage(errorMessage = '') {
       display: grid;
       place-items: center;
       background: var(--bg);
+      background-image:
+        radial-gradient(circle at 82% -5%, rgba(118, 169, 201, 0.14), transparent 36rem),
+        radial-gradient(circle at 12% 20%, rgba(217, 154, 87, 0.06), transparent 30rem),
+        linear-gradient(180deg, rgba(16, 28, 46, 0.6) 0%, #0a121e 100%);
       color: var(--ink);
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
     .login-shell {
       width: min(420px, calc(100vw - 24px));
@@ -807,7 +811,7 @@ function buildLoginPage(errorMessage = '') {
       padding: 12px 14px;
       border-radius: 8px;
       border: 1px solid var(--panel-border);
-      background: #10161b;
+      background: #0a121e;
       color: var(--ink);
       font-size: 15px;
     }

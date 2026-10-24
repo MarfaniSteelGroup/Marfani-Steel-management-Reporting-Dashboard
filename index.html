@@ -8,7 +8,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=9c31d4c">
+<link rel="stylesheet" href="css/style.css?v=9c31d4e">
+<script>
+  (function() {
+    try {
+      var t = localStorage.getItem('marfani_theme') || 'executive-navy';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch(e) {}
+  })();
+</script>
 <style>
   body.auth-locked > .hull { display: none; }
   .auth-gate {
@@ -16,32 +24,41 @@
     display: grid;
     place-items: center;
     padding: 24px;
-    background: #0b1420;
-    color: #f5f7f9;
+    background-color: var(--hull-0, #0a121e);
+    background-image: var(--bg-pattern);
+    background-attachment: fixed;
+    color: var(--ink-0, #f8fafc);
     font-family: "Manrope", sans-serif;
+    transition: background-color .22s ease;
   }
   .auth-gate[hidden] { display: none; }
   .auth-panel {
-    width: min(420px, 100%);
+    width: min(440px, 100%);
     padding: 28px 24px;
-    border: 1px solid #2d455c;
+    border: 1px solid var(--line-soft, #172a3e);
     border-radius: 12px;
-    background: #111e2d;
-    box-shadow: 0 18px 40px rgba(0,0,0,.25);
+    background: var(--card-bg, #101c2e);
+    box-shadow: var(--card-shadow, 0 18px 40px rgba(0,0,0,.35));
   }
-  .auth-panel h1 { margin: 0 0 8px; font-family: "Space Grotesk", sans-serif; }
-  .auth-panel p { margin: 0 0 20px; color: #91a5b8; }
+  .auth-panel h1 { margin: 0 0 8px; font-family: "Space Grotesk", sans-serif; color: var(--ink-0, #f8fafc); }
+  .auth-panel p { margin: 0 0 20px; color: var(--ink-2, #8ea5bd); }
   .auth-form { display: grid; gap: 14px; }
-  .auth-form label { display: grid; gap: 7px; font-size: 13px; }
-  .auth-form input { padding: 12px; border: 1px solid #2d455c; border-radius: 8px; background: #0b1420; color: #f5f7f9; font: inherit; }
-  .auth-form button { padding: 12px; border: 0; border-radius: 8px; background: #d99a57; color: #0b1420; font-weight: 700; cursor: pointer; }
-  .auth-error { min-height: 18px; margin: 0; color: #db7770; font-size: 13px; }
+  .auth-form label { display: grid; gap: 7px; font-size: 13px; color: var(--ink-1, #dbe4ee); }
+  .auth-form input { padding: 12px; border: 1px solid var(--line, #243b55); border-radius: 8px; background: var(--hull-0, #0a121e); color: var(--ink-0, #f8fafc); font: inherit; }
+  .auth-form button { padding: 12px; border: 0; border-radius: 8px; background: var(--amber, #d99a57); color: #0a121e; font-weight: 700; cursor: pointer; }
+  .auth-error { min-height: 18px; margin: 0; color: var(--red, #db7770); font-size: 13px; }
 </style>
 </head>
 <body class="auth-locked">
 
 <section class="auth-gate" id="authGate">
   <div class="auth-panel">
+    <div class="auth-theme-bar">
+      <button type="button" class="auth-theme-btn" id="authThemeBtn" title="Switch professional theme">
+        <svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+        <span id="authThemeLabel">Theme: Executive Navy</span>
+      </button>
+    </div>
     <h1>User Login</h1>
     <p>Marfani Steel Group Management Reporting Deck</p>
     <form class="auth-form" id="authForm">
@@ -112,6 +129,56 @@
       <div class="topbar-stamp">
         <span class="stamp-label">REPORT AS ON</span>
         <span class="stamp-date" id="asOnDate">LIVE 19-SEP-2026 00:00:00</span>
+      </div>
+      <div class="theme-selector" id="themeSelector">
+        <button class="theme-trigger" id="themeTrigger" type="button" aria-haspopup="true" aria-expanded="false" title="Switch professional background theme">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+          <span class="theme-trigger-label" id="activeThemeName">Theme: Executive Navy</span>
+          <svg class="chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="theme-dropdown" id="themeDropdown" hidden>
+          <div class="theme-dropdown-header">PROFESSIONAL THEMES</div>
+          <button type="button" class="theme-option active" data-theme="executive-navy">
+            <span class="theme-swatch" style="background: radial-gradient(circle, #1f3450 0%, #0a121e 100%); border-color: #d99a57;"></span>
+            <div class="theme-meta">
+              <span class="theme-title">Executive Navy</span>
+              <span class="theme-desc">Corporate midnight &amp; warm copper (Default)</span>
+            </div>
+            <span class="theme-check">✓</span>
+          </button>
+          <button type="button" class="theme-option" data-theme="titanium-slate">
+            <span class="theme-swatch" style="background: radial-gradient(circle, #253144 0%, #0b0e14 100%); border-color: #4da3ff;"></span>
+            <div class="theme-meta">
+              <span class="theme-title">Titanium Slate</span>
+              <span class="theme-desc">Precision graphite &amp; ice-steel blue</span>
+            </div>
+            <span class="theme-check">✓</span>
+          </button>
+          <button type="button" class="theme-option" data-theme="charcoal-steel">
+            <span class="theme-swatch" style="background: radial-gradient(circle, #2b2e38 0%, #101114 100%); border-color: #e5a758;"></span>
+            <div class="theme-meta">
+              <span class="theme-title">Charcoal Steel</span>
+              <span class="theme-desc">Deep obsidian &amp; metallic bronze</span>
+            </div>
+            <span class="theme-check">✓</span>
+          </button>
+          <button type="button" class="theme-option" data-theme="emerald-treasury">
+            <span class="theme-swatch" style="background: radial-gradient(circle, #1c3833 0%, #061311 100%); border-color: #dfa74d;"></span>
+            <div class="theme-meta">
+              <span class="theme-title">Emerald Treasury</span>
+              <span class="theme-desc">Institutional dark forest &amp; brass</span>
+            </div>
+            <span class="theme-check">✓</span>
+          </button>
+          <button type="button" class="theme-option" data-theme="corporate-light">
+            <span class="theme-swatch" style="background: radial-gradient(circle, #ffffff 0%, #eaeff6 100%); border-color: #0284c7;"></span>
+            <div class="theme-meta">
+              <span class="theme-title">Corporate Light</span>
+              <span class="theme-desc">Crisp executive daylight &amp; high contrast</span>
+            </div>
+            <span class="theme-check">✓</span>
+          </button>
+        </div>
       </div>
       <div class="admin-tools">
         <button class="admin-trigger" id="adminTrigger" type="button" aria-expanded="false" aria-controls="adminPanel">
@@ -221,7 +288,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="js/utils.js?v=9c31d4a"></script>
+<script src="js/utils.js?v=9c31d4e"></script>
 <script src="js/views.js?v=9c31d4a"></script>
 <script>
   (() => {
@@ -561,6 +628,6 @@
     checkSession();
   })();
 </script>
-<script src="js/app.js?v=9c31d4b"></script>
+<script src="js/app.js?v=9c31d4e"></script>
 </body>
 </html>

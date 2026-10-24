@@ -58,6 +58,107 @@ document.getElementById('dockNav').addEventListener('click', (e) => {
 
 burger.addEventListener('click', () => dock.classList.toggle('open'));
 
+/* ---------------- professional theme manager ---------------- */
+
+const THEME_NAMES = {
+  'executive-navy': 'Executive Navy',
+  'titanium-slate': 'Titanium Slate',
+  'charcoal-steel': 'Charcoal Steel',
+  'emerald-treasury': 'Emerald Treasury',
+  'corporate-light': 'Corporate Light'
+};
+
+const THEME_KEYS = Object.keys(THEME_NAMES);
+
+function applyTheme(themeKey, notify = false){
+  if (!THEME_NAMES[themeKey]) themeKey = 'executive-navy';
+  document.documentElement.setAttribute('data-theme', themeKey);
+  if (document.body) document.body.setAttribute('data-theme', themeKey);
+  try {
+    localStorage.setItem('marfani_theme', themeKey);
+  } catch(e) {}
+
+  const activeLabel = document.getElementById('activeThemeName');
+  if (activeLabel) {
+    activeLabel.textContent = `Theme: ${THEME_NAMES[themeKey]}`;
+  }
+
+  const authLabel = document.getElementById('authThemeLabel');
+  if (authLabel) {
+    authLabel.textContent = `Theme: ${THEME_NAMES[themeKey]}`;
+  }
+
+  document.querySelectorAll('.theme-option').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === themeKey);
+  });
+
+  if (typeof updatePaletteFromTheme === 'function') {
+    updatePaletteFromTheme();
+  }
+
+  if (notify && typeof navigate === 'function') {
+    const currentRoute = (window.location.hash || '#overview').replace('#','');
+    navigate(currentRoute);
+  }
+}
+
+function cycleNextTheme(){
+  const current = localStorage.getItem('marfani_theme') || 'executive-navy';
+  const idx = THEME_KEYS.indexOf(current);
+  const next = THEME_KEYS[(idx + 1) % THEME_KEYS.length];
+  applyTheme(next, true);
+}
+
+function initThemeSwitcher(){
+  const trigger = document.getElementById('themeTrigger');
+  const dropdown = document.getElementById('themeDropdown');
+  const authBtn = document.getElementById('authThemeBtn');
+
+  const currentTheme = localStorage.getItem('marfani_theme') || 'executive-navy';
+  applyTheme(currentTheme, false);
+
+  if (trigger && dropdown) {
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+      trigger.setAttribute('aria-expanded', String(!isExpanded));
+      dropdown.hidden = isExpanded;
+    });
+
+    dropdown.addEventListener('click', (e) => {
+      const opt = e.target.closest('.theme-option');
+      if (!opt) return;
+      const chosenTheme = opt.dataset.theme;
+      applyTheme(chosenTheme, true);
+      dropdown.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && !trigger.contains(e.target)) {
+        dropdown.hidden = true;
+        trigger.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !dropdown.hidden) {
+        dropdown.hidden = true;
+        trigger.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  if (authBtn) {
+    authBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      cycleNextTheme();
+    });
+  }
+}
+
+initThemeSwitcher();
+
 updateLiveReportStamp();
 setInterval(updateLiveReportStamp, 1000);
 

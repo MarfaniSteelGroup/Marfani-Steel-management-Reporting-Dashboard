@@ -124,8 +124,33 @@ const PALETTE = {
   gridline: 'rgba(145,165,184,0.14)'
 };
 
+function updatePaletteFromTheme(){
+  if (typeof document === 'undefined' || !document.documentElement) return;
+  const s = getComputedStyle(document.documentElement);
+  const amber = s.getPropertyValue('--amber').trim();
+  const steel = s.getPropertyValue('--steel').trim();
+  const green = s.getPropertyValue('--green').trim();
+  const red   = s.getPropertyValue('--red').trim();
+  const ink1  = s.getPropertyValue('--ink-1').trim();
+  const ink2  = s.getPropertyValue('--ink-2').trim();
+  const grid  = s.getPropertyValue('--chart-grid').trim();
+
+  if(amber) PALETTE.amber = amber;
+  if(steel) PALETTE.steel = steel;
+  if(green) PALETTE.green = green;
+  if(red)   PALETTE.red   = red;
+  if(ink1)  PALETTE.ink1  = ink1;
+  if(ink2)  PALETTE.ink2  = ink2;
+  if(grid)  PALETTE.gridline = grid;
+
+  if (typeof Chart !== 'undefined' && Chart.defaults) {
+    Chart.defaults.color = PALETTE.ink2;
+  }
+}
+
 function chartDefaults(){
+  if (typeof Chart === 'undefined' || !Chart.defaults) return;
   Chart.defaults.font.family = "'IBM Plex Mono', monospace";
   Chart.defaults.font.size = 11.5;
-  Chart.defaults.color = PALETTE.ink2;
+  updatePaletteFromTheme();
 }
